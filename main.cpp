@@ -45,12 +45,12 @@ int main(int argc, char* argv[])
     //print help information
     help();
 
-    //check for the input parameter correctness
-    if(argc != 3) {
-        cerr <<"Incorret input list" << endl;
-        cerr <<"exiting..." << endl;
-        return EXIT_FAILURE;
-    }
+    ////check for the input parameter correctness
+    //if(argc != 3) {
+    //    cerr <<"Incorret input list" << endl;
+    //    cerr <<"exiting..." << endl;
+    //    return EXIT_FAILURE;
+    //}
 
     //create GUI windows
     namedWindow("Frame");

@@ -10,6 +10,7 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <numeric>
 
 using namespace cv;
 using namespace std;
@@ -29,15 +30,17 @@ int keyboard;
 // Variabili utilizzate nell'estrazione dell'area di interesse
 int leftX = 0, rightX = 0;
 
-// Informazioni sul frame corrente processato
-int frameCounter = 0;
-
 // Inizializzazione utile nel caso non trovi contorni
 Mat3b frameResized = Mat3b(STD_SIZE.height, 250);
 
 // Dichiarazione delle funzioni
 void help();
 void processVideo(char* videoFilename);
+
+
+template <typename T>  bool IsInBounds(const T& value, const T& low, const T& high) {
+    return !(value < low) && !(high < value);
+}
 
 
 // ------------------ MAIN -------------------------------
@@ -95,6 +98,7 @@ void processVideo(char* videoFilename) {
 		cerr << "Unable to open video file: " << videoFilename << endl;
 		exit(EXIT_FAILURE);
 	}
+
 	//read input data. ESC or 'q' for quitting
 	while( (char)keyboard != 'q' && (char)keyboard != 27 ) {
 		//read the current frame
@@ -110,48 +114,80 @@ void processVideo(char* videoFilename) {
 		// BACKGROUND SUBTRACTION --------------------------------------------
 		pMOG->operator()(frame, fgMaskMOG, 0.1);
 		pMOG2->operator()(frame, fgMaskMOG2, 0.1);
-		//get the frame number and write it on the current frame
-		stringstream ss;
-		rectangle(frame, cv::Point(10, 2), cv::Point(100,20),
-			cv::Scalar(255,255,255), -1);
-		ss << capture.get(CV_CAP_PROP_POS_FRAMES);
-		string frameNumberString = ss.str();
-		putText(frame, frameNumberString.c_str(), cv::Point(15, 15),
-			FONT_HERSHEY_SIMPLEX, 0.5 , cv::Scalar(0,0,0));
+
+		// FILTERING
+		medianBlur(fgMaskMOG, fgMaskMOG, 15);
+		dilate(fgMaskMOG, fgMaskMOG, Mat(), Point(-1, -1), 2, 1, 1);
 
 		// disegna una bounding box BLU attorno alle zone di foreground
 		std::vector<std::vector<cv::Point> > contours;
 		std::vector<cv::Vec4i> hierarchy;
 		findContours( fgMaskMOG, contours, hierarchy, RETR_CCOMP, cv::CHAIN_APPROX_TC89_KCOS);
-		for ( size_t i=0; i<contours.size(); ++i ){
 
-			Rect brect = cv::boundingRect(contours[i]);
+		// ---------------------------------------------------------------------------------------------
+		// Trova il centro di massa di ogni contorno (trovato dopo il filtering)
+		// Calcola poi il centroide della nuvola di punti per stabilire il punto centrale del movimento
+		// In giallo i centri di massa dei contorni. In rosso il centroide complessivo.
+		int centroidX, centroidY;
+		if(contours.size() > 0) {
+			vector<int> cmContoursX, cmContoursY;
+			for ( size_t i=0; i<contours.size(); ++i ){
 
-			// disegna un rettangolo solo se è più grande di (frame.rows/3) (soglia a caso)
-			if(true/*brect.height > (frame.rows/3)*/){
+				Moments mo = moments(contours[i], true);
+				Point2d result = Point2d(mo.m10/mo.m00 , mo.m01/mo.m00);
+				cmContoursX.push_back(result.x);
+				cmContoursY.push_back(result.y);
+				circle(frame, result, 3, Scalar(0,255,255), 3);
+			}
+			centroidX = accumulate(cmContoursX.begin(), cmContoursX.end(), 0) / contours.size();
+			centroidY = accumulate(cmContoursY.begin(), cmContoursY.end(), 0) / contours.size();
+			circle(frame, Point2d(centroidX, centroidY), 7, Scalar(0,0,255), 3);
 
-				int rectCenterX = brect.x + brect.width/2;
-				int rectCenterY = brect.y + brect.height/2;
+			leftX = centroidX - 125;
+			if(leftX < 0)
+				leftX = 0;
+			rightX = centroidX + 125;
+			if(rightX > STD_SIZE.width)
+				rightX = STD_SIZE.width;
 
-				leftX = rectCenterX - 125;
-				if(leftX < 0)
-					leftX = 0;
-				rightX = rectCenterX + 125;
-				if(rightX > STD_SIZE.width)
-					rightX = STD_SIZE.width;
-
-				Rect newRect = Rect(leftX, 0, (rightX-leftX), STD_SIZE.height);
-
+			if (IsInBounds(centroidX, 0, 640) && IsInBounds(centroidY, 0, 480)) {
+				Rect newRect = Rect(leftX, 0, abs(rightX-leftX), STD_SIZE.height);
 				frameResized = Mat3b(STD_SIZE.height, 250);
 				frameResized = frame(newRect);
-
-				
-				rectangle(frame, newRect, Scalar(255,0,0));
 			}
-				/*stringstream ss;
-				ss << "tmp/" << frameCounter << ".jpg";
-				imwrite(ss.str(), frameResized);*/
 		}
+		// ---------------------------------------------------------------------------------------------
+
+
+		// VECCHIA VERSIONE
+		//for ( size_t i=0; i<contours.size(); ++i ){
+
+		//	Rect brect = cv::boundingRect(contours[i]);
+
+		//	// disegna un rettangolo solo se è più grande di (frame.rows/3) (soglia a caso)
+		//	if(true/*brect.height > (frame.rows/3)*/){
+
+		//		int rectCenterX = brect.x + brect.width/2;
+		//		int rectCenterY = brect.y + brect.height/2;
+
+		//		leftX = rectCenterX - 125;
+		//		if(leftX < 0)
+		//			leftX = 0;
+		//		rightX = rectCenterX + 125;
+		//		if(rightX > STD_SIZE.width)
+		//			rightX = STD_SIZE.width;
+
+		//		Rect newRect = Rect(leftX, 0, (rightX-leftX), STD_SIZE.height);
+
+		//		frameResized = Mat3b(STD_SIZE.height, 250);
+		//		frameResized = frame(newRect);
+
+		//		rectangle(frame, newRect, Scalar(255,0,0));
+		//	}
+		//	/*stringstream ss;
+		//	ss << "tmp/" << capture.get(CV_CAP_PROP_POS_FRAMES) << ".jpg";
+		//	imwrite(ss.str(), frameResized);*/
+		//}
 
 		// HOG PEOPLE DETECTION -----------------------------------------------
 		vector<Rect> found, found_filtered;
@@ -189,18 +225,20 @@ void processVideo(char* videoFilename) {
 		imshow("frameResized", frameResized);
 		imshow("FG Mask MOG", fgMaskMOG);
 		imshow("FG Mask MOG 2", fgMaskMOG2);
+
 		//get the input from the keyboard
 		keyboard = waitKey( 1 );
 
-		frameCounter++;
-
-	}
+	} // end of while
 
 	//delete capture object
 	capture.release();
 
 
 }
+
+
+
 
 void help()
 {

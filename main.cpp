@@ -127,7 +127,7 @@ void processVideo(char* videoFilename) {
 		// ---------------------------------------------------------------------------------------------
 		// Trova il centro di massa di ogni contorno (trovato dopo il filtering)
 		// Calcola poi il centroide della nuvola di punti per stabilire il punto centrale del movimento
-		// In giallo i centri di massa dei contorni. In rosso il centroide complessivo.
+		// Se tolti i commenti, in giallo i centri di massa dei contorni. In rosso il centroide complessivo.
 		int centroidX, centroidY;
 		if(contours.size() > 0) {
 			vector<int> cmContoursX, cmContoursY;
@@ -137,11 +137,11 @@ void processVideo(char* videoFilename) {
 				Point2d result = Point2d(mo.m10/mo.m00 , mo.m01/mo.m00);
 				cmContoursX.push_back(result.x);
 				cmContoursY.push_back(result.y);
-				circle(frame, result, 3, Scalar(0,255,255), 3);
+				//circle(frame, result, 3, Scalar(0,255,255), 3);
 			}
 			centroidX = accumulate(cmContoursX.begin(), cmContoursX.end(), 0) / contours.size();
 			centroidY = accumulate(cmContoursY.begin(), cmContoursY.end(), 0) / contours.size();
-			circle(frame, Point2d(centroidX, centroidY), 7, Scalar(0,0,255), 3);
+			//circle(frame, Point2d(centroidX, centroidY), 7, Scalar(0,0,255), 3);
 
 			leftX = centroidX - 125;
 			if(leftX < 0)

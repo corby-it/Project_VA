@@ -22,6 +22,16 @@ Ptr<BackgroundSubtractor> pMOG; //MOG Background subtractor
 Ptr<BackgroundSubtractor> pMOG2; //MOG2 Background subtractor
 int keyboard;
 
+int leftX = 0, rightX = 0;
+
+int frameCounter = 0;
+// Risoluzione a cui viene resizato qualsiasi frame
+const Size STD_SIZE(640, 480);
+
+// Inizializzazione utile nel caso non trovi contorni
+Mat3b frameResized = Mat3b(STD_SIZE.height, 250);
+
+
 
 //function declarations
 void help();
@@ -95,7 +105,7 @@ void processVideo(char* videoFilename) {
 	hog.setSVMDetector(HOGDescriptor::getDefaultPeopleDetector());
 
 	//create the capture object
-	VideoCapture capture(videoFilename);
+	VideoCapture capture(videoFilename); // o filename!
 	if(!capture.isOpened()){
 		//error in opening the video input
 		cerr << "Unable to open video file: " << videoFilename << endl;
@@ -110,9 +120,12 @@ void processVideo(char* videoFilename) {
 			exit(EXIT_FAILURE);
 		}
 
+		// Resize dei frame in input alla dimensione standard
+		resize(frame, frame, STD_SIZE);
+
 		// BACKGROUND SUBTRACTION --------------------------------------------
-		pMOG->operator()(frame, fgMaskMOG, 0.01);
-		pMOG2->operator()(frame, fgMaskMOG2);
+		pMOG->operator()(frame, fgMaskMOG, 0.1);
+		pMOG2->operator()(frame, fgMaskMOG2, 0.1);
 		//get the frame number and write it on the current frame
 		stringstream ss;
 		rectangle(frame, cv::Point(10, 2), cv::Point(100,20),
@@ -122,18 +135,39 @@ void processVideo(char* videoFilename) {
 		putText(frame, frameNumberString.c_str(), cv::Point(15, 15),
 			FONT_HERSHEY_SIMPLEX, 0.5 , cv::Scalar(0,0,0));
 
-		// disegna una bounding box attorno alle zone di foreground
+		// disegna una bounding box BLU attorno alle zone di foreground
 		std::vector<std::vector<cv::Point> > contours;
 		std::vector<cv::Vec4i> hierarchy;
 		findContours( fgMaskMOG, contours, hierarchy, RETR_CCOMP, cv::CHAIN_APPROX_TC89_KCOS);
 		for ( size_t i=0; i<contours.size(); ++i ){
 
 			Rect brect = cv::boundingRect(contours[i]);
-			// disegna un rettangolo solo se è più grande di 10000 (soglia a caso)
+			// disegna un rettangolo solo se è più grande di 200 (soglia a caso)
 			// per non disegnare tanti micro rettangolini
-			if(brect.area() > 10000){
-				rectangle(frame, brect, Scalar(255,0,0));
+			
+			if(brect.height > (frame.rows/3)){
+
+				int rectCenterX = brect.x + brect.width/2;
+				int rectCenterY = brect.y + brect.height/2;
+
+				leftX = rectCenterX - 125;
+				if(leftX < 0)
+					leftX = 0;
+				rightX = rectCenterX + 125;
+				if(rightX > STD_SIZE.width)
+					rightX = STD_SIZE.width;
+
+				Rect newRect = Rect(leftX, 0, (rightX-leftX), STD_SIZE.height);
+
+				frameResized = Mat3b(STD_SIZE.height, 250);
+				frameResized = frame(newRect);
+
+				
+				rectangle(frame, newRect, Scalar(255,0,0));
 			}
+				/*stringstream ss;
+				ss << "tmp/" << frameCounter << ".jpg";
+				imwrite(ss.str(), frameResized);*/
 		}
 
 		// HOG PEOPLE DETECTION -----------------------------------------------
@@ -142,7 +176,7 @@ void processVideo(char* videoFilename) {
 		// run the detector with default parameters. to get a higher hit-rate
 		// (and more false alarms, respectively), decrease the hitThreshold and
 		// groupThreshold (set groupThreshold to 0 to turn off the grouping completely).
-		hog.detectMultiScale(frame, found, 0, Size(8,8), Size(0,0), 1.05, 2);
+		hog.detectMultiScale(frameResized, found, 0, Size(8,8), Size(0,0), 1.05, 2);
 		t = (double)getTickCount() - t;
 		cout << "detection time = " << t*1000./cv::getTickFrequency() << " - found objects: " << found.size() << endl;
 
@@ -160,7 +194,7 @@ void processVideo(char* videoFilename) {
 			Rect r = found_filtered[i];
 			// the HOG detector returns slightly larger rectangles than the real objects.
 			// so we slightly shrink the rectangles to get a nicer output.
-			r.x += cvRound(r.width*0.1);
+			r.x += cvRound(r.width*0.1) + leftX;
 			r.width = cvRound(r.width*0.8);
 			r.y += cvRound(r.height*0.07);
 			r.height = cvRound(r.height*0.8);
@@ -169,13 +203,20 @@ void processVideo(char* videoFilename) {
 
 		//show the current frame and the fg masks
 		imshow("Frame", frame);
-		imshow("FG Mask MOG", fgMaskMOG);
-		imshow("FG Mask MOG 2", fgMaskMOG2);
+		imshow("frameResized", frameResized);
+		//imshow("FG Mask MOG", fgMaskMOG);
+		//imshow("FG Mask MOG 2", fgMaskMOG2);
 		//get the input from the keyboard
-		keyboard = waitKey( 30 );
+		keyboard = waitKey( 1 );
+
+		frameCounter++;
+
 	}
+
 	//delete capture object
 	capture.release();
+
+
 }
 
 void processImages(char* fistFrameFilename) {

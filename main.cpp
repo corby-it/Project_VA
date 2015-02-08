@@ -11,6 +11,7 @@
 #include <iomanip>
 #include <sstream>
 #include <numeric>
+#include <cstdint>
 
 using namespace cv;
 using namespace std;
@@ -40,7 +41,7 @@ void processVideo(char* videoFilename);
 
 
 template <typename T>  bool IsInBounds(const T& value, const T& low, const T& high) {
-    return !(value < low) && !(high < value);
+	return !(value < low) && !(high < value);
 }
 
 
@@ -128,7 +129,7 @@ void processVideo(char* videoFilename) {
 		std::vector<std::vector<cv::Point> > contours;
 		std::vector<cv::Vec4i> hierarchy;
 		findContours( fgMaskMOG, contours, hierarchy, RETR_CCOMP, cv::CHAIN_APPROX_TC89_KCOS);
-
+		
 		// ---------------------------------------------------------------------------------------------
 		// Trova il centro di massa di ogni contorno (trovato dopo il filtering)
 		// Calcola poi il centroide della nuvola di punti per stabilire il punto centrale del movimento
@@ -137,17 +138,43 @@ void processVideo(char* videoFilename) {
 		if(contours.size() > 0) {
 			vector<int> cmContoursX, cmContoursY;
 			for ( size_t i=0; i<contours.size(); ++i ){
-
 				Moments mo = moments(contours[i], true);
 				Point2d result = Point2d(mo.m10/mo.m00 , mo.m01/mo.m00);
-				cmContoursX.push_back(result.x);
-				cmContoursY.push_back(result.y);
-				//circle(frame, result, 3, Scalar(0,255,255), 3);
+				// Controlla che il centro di massa del contorno sia nel range dell'immagine
+				if( IsInBounds(int(result.x), 0, STD_SIZE.width) && IsInBounds(int(result.y), 0, STD_SIZE.height)){
+					cmContoursX.push_back(result.x);
+					cmContoursY.push_back(result.y);
+					// [DEBUG] Disegna la posizione del centro di massa e del boundingRect del contorno
+					rectangle(frameDrawn, boundingRect(contours[i]), Scalar(255,0,0), 1);
+					circle(frameDrawn, result, 3, Scalar(0,255,255), 3);
+				}
 			}
-			centroidX = accumulate(cmContoursX.begin(), cmContoursX.end(), 0) / contours.size();
-			centroidY = accumulate(cmContoursY.begin(), cmContoursY.end(), 0) / contours.size();
-			//circle(frame, Point2d(centroidX, centroidY), 7, Scalar(0,0,255), 3);
 
+			// Trova il contorno di area maggiore per poter dare un maggior peso alla sua posizione
+			int largestContourIndex = -1;
+			int largestArea = -1;
+			for (int i=0; i<contours.size(); ++i) {
+				if(contourArea(contours[i]) > largestArea) {
+					largestArea = contourArea(contours[i]);
+					largestContourIndex = i;
+				}
+			}
+			// [DEBUG] Disegna il boundingRect del contorno di area maggiore
+			rectangle(frameDrawn, boundingRect(contours[largestContourIndex]), Scalar(255,0,0), 3);
+
+
+			// Calcola la posizione del centroide
+			// Il centro del contorno di area maggiore pesa N volte più degli altri nella media
+			// (Per capire il codice vedere il terzo parametro della funzione di accumulate)
+			uint32_t largestContourWeight = 3;
+			centroidX = accumulate(cmContoursX.begin(), cmContoursX.end(), (largestContourWeight-1)*cmContoursX[largestContourIndex])
+				/ (contours.size()+(largestContourWeight-1));
+			centroidY = accumulate(cmContoursY.begin(), cmContoursY.end(), (largestContourWeight-1)*cmContoursY[largestContourIndex])
+				/ (contours.size()+(largestContourWeight-1));
+			// [DEBUG] Visualizza il centroide (in rosso)
+			circle(frameDrawn, Point2d(centroidX, centroidY), 7, Scalar(0,0,255), 3);
+
+			// Dimensioni della ROI (questa parte si può collassare nella successiva secondo me)
 			leftX = centroidX - 125;
 			if(leftX < 0)
 				leftX = 0;
@@ -155,7 +182,8 @@ void processVideo(char* videoFilename) {
 			if(rightX > STD_SIZE.width)
 				rightX = STD_SIZE.width;
 
-			if (IsInBounds(centroidX, 0, 640) && IsInBounds(centroidY, 0, 480)) {
+			// Se il centroide è all'interno del frame, ritaglia la ROI
+			if (IsInBounds(centroidX, 0, STD_SIZE.width) && IsInBounds(centroidY, 0, STD_SIZE.height)) {
 				Rect newRect = Rect(leftX, 0, abs(rightX-leftX), STD_SIZE.height);
 				frameResized = Mat3b(STD_SIZE.height, 250);
 				frameResized = frame(newRect);
@@ -164,35 +192,6 @@ void processVideo(char* videoFilename) {
 		// ---------------------------------------------------------------------------------------------
 
 
-		// VECCHIA VERSIONE
-		//for ( size_t i=0; i<contours.size(); ++i ){
-
-		//	Rect brect = cv::boundingRect(contours[i]);
-
-		//	// disegna un rettangolo solo se è più grande di (frame.rows/3) (soglia a caso)
-		//	if(true/*brect.height > (frame.rows/3)*/){
-
-		//		int rectCenterX = brect.x + brect.width/2;
-		//		int rectCenterY = brect.y + brect.height/2;
-
-		//		leftX = rectCenterX - 125;
-		//		if(leftX < 0)
-		//			leftX = 0;
-		//		rightX = rectCenterX + 125;
-		//		if(rightX > STD_SIZE.width)
-		//			rightX = STD_SIZE.width;
-
-		//		Rect newRect = Rect(leftX, 0, (rightX-leftX), STD_SIZE.height);
-
-		//		frameResized = Mat3b(STD_SIZE.height, 250);
-		//		frameResized = frame(newRect);
-
-		//		rectangle(frame, newRect, Scalar(255,0,0));
-		//	}
-		//	/*stringstream ss;
-		//	ss << "tmp/" << capture.get(CV_CAP_PROP_POS_FRAMES) << ".jpg";
-		//	imwrite(ss.str(), frameResized);*/
-		//}
 
 		// HOG PEOPLE DETECTION -----------------------------------------------
 		vector<Rect> found, found_filtered;

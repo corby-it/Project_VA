@@ -17,8 +17,8 @@ using namespace cv;
 using namespace std;
 
 // ------------------ COSTANTI --------------------------------
-// Risoluzione a cui viene resizato qualsiasi frame
-const Size STD_SIZE(640, 480);
+const Size STD_SIZE(640, 480); // Risoluzione a cui viene resizato qualsiasi frame
+const float MOG_LEARNING_RATE = 0.05f; // Learning rate della BG subtraction (sia per MOG che MOG2)
 
 // ------------------ VARIABILI -------------------------------
 Mat frame; //current frame
@@ -118,8 +118,8 @@ void processVideo(char* videoFilename) {
 		frameDrawn = frame.clone();
 
 		// BACKGROUND SUBTRACTION --------------------------------------------
-		pMOG->operator()(frame, fgMaskMOG, 0.1);
-		pMOG2->operator()(frame, fgMaskMOG2, 0.1);
+		pMOG->operator()(frame, fgMaskMOG, MOG_LEARNING_RATE);
+		pMOG2->operator()(frame, fgMaskMOG2, MOG_LEARNING_RATE);
 
 		// FILTERING
 		medianBlur(fgMaskMOG, fgMaskMOG, 15);
@@ -129,7 +129,7 @@ void processVideo(char* videoFilename) {
 		std::vector<std::vector<cv::Point> > contours;
 		std::vector<cv::Vec4i> hierarchy;
 		findContours( fgMaskMOG, contours, hierarchy, RETR_CCOMP, cv::CHAIN_APPROX_TC89_KCOS);
-		
+
 		// ---------------------------------------------------------------------------------------------
 		// Trova il centro di massa di ogni contorno (trovato dopo il filtering)
 		// Calcola poi il centroide della nuvola di punti per stabilire il punto centrale del movimento
@@ -192,7 +192,6 @@ void processVideo(char* videoFilename) {
 		// ---------------------------------------------------------------------------------------------
 
 
-
 		// HOG PEOPLE DETECTION -----------------------------------------------
 		vector<Rect> found, found_filtered;
 		double t = (double)getTickCount();
@@ -213,16 +212,46 @@ void processVideo(char* videoFilename) {
 				found_filtered.push_back(r);
 		}
 
-		for( i = 0; i < found_filtered.size(); i++ ){
-			Rect r = found_filtered[i];
+		// se trova più di una persona scorre tutti i risulati e tiene il rettangolo il cui centro
+		// è più vicino al centroide di movimento (quello che più probabilmente contiene la persona reale),
+		// in questo modo si elimina la possibilità di avere due persone detected in scena.
+		if(found_filtered.size() > 0){
+			Point2d movementCentroid(centroidX, centroidX);
+
+			Rect closestRect = found_filtered[0];
+			Point2d closestRectCenter(closestRect.x + closestRect.width/2 , closestRect.y + closestRect.height/2 );
+			double closestDistance = norm(closestRectCenter - movementCentroid);
+
+			for(i = 1; i < found_filtered.size(); i++){
+				Rect currRect = found_filtered[i];
+				Point2d currRectCenter(currRect.x + currRect.width/2 , currRect.y + currRect.height/2 );
+				double currDistance = norm(currRectCenter - movementCentroid);
+
+				if(currDistance < closestDistance){
+					closestDistance = currDistance;
+					closestRect = currRect;
+				}
+			}
+
 			// the HOG detector returns slightly larger rectangles than the real objects.
 			// so we slightly shrink the rectangles to get a nicer output.
-			r.x += cvRound(r.width*0.1) + leftX;
-			r.width = cvRound(r.width*0.8);
-			r.y += cvRound(r.height*0.07);
-			r.height = cvRound(r.height*0.8);
-			rectangle(frameDrawn, r.tl(), r.br(), cv::Scalar(0,255,0), 1);
+			closestRect.x += cvRound(closestRect.width*0.1) + leftX;
+			closestRect.width = cvRound(closestRect.width*0.8);
+			closestRect.y += cvRound(closestRect.height*0.07);
+			closestRect.height = cvRound(closestRect.height*0.8);
+			rectangle(frameDrawn, closestRect.tl(), closestRect.br(), cv::Scalar(0,255,0), 1);
 		}
+
+		//for( i = 0; i < found_filtered.size(); i++ ){
+		//	Rect r = found_filtered[i];
+		//	// the HOG detector returns slightly larger rectangles than the real objects.
+		//	// so we slightly shrink the rectangles to get a nicer output.
+		//	r.x += cvRound(r.width*0.1) + leftX;
+		//	r.width = cvRound(r.width*0.8);
+		//	r.y += cvRound(r.height*0.07);
+		//	r.height = cvRound(r.height*0.8);
+		//	rectangle(frameDrawn, r.tl(), r.br(), cv::Scalar(0,255,0), 1);
+		//}
 
 		//show the current frame and the fg masks
 		imshow("Frame", frame);

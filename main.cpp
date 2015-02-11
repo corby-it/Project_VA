@@ -242,7 +242,7 @@ void processVideo(char* videoFilename) {
 		// è più vicino al centroide di movimento (quello che più probabilmente contiene la persona reale),
 		// in questo modo si elimina la possibilità di avere due persone detected in scena.
 		if(found_filtered.size() > 0){
-			Point2d movementCentroid(centroidX, centroidX);
+			Point2d movementCentroid(centroidX, centroidY);
 
 			Rect closestRect = found_filtered[0];
 			Point2d closestRectCenter(closestRect.x + closestRect.width/2 , closestRect.y + closestRect.height/2 );
@@ -268,6 +268,8 @@ void processVideo(char* videoFilename) {
 			rectangle(frameDrawn, closestRect.tl(), closestRect.br(), cv::Scalar(0,255,0), 4);
 
 		}
+
+		// Disegna tutti i risultati della people detection
 
 		//for( i = 0; i < found_filtered.size(); i++ ){
 		//	Rect r = found_filtered[i];

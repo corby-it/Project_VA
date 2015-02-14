@@ -93,7 +93,7 @@ int main(int argc, char* argv[])
 
 	// pause, wait for key
 	system("pause");
-	
+
 	//destroy GUI windows
 	destroyAllWindows();
 
@@ -114,6 +114,9 @@ void processVideo(char* videoFilename) {
 		cerr << "Unable to open video file: " << videoFilename << endl;
 		exit(EXIT_FAILURE);
 	}
+
+	// 
+	Point2d predictionVect();
 
 	//read input data. ESC or 'q' for quitting
 	while( (char)keyboard != 'q' && (char)keyboard != 27 ) {
@@ -218,55 +221,66 @@ void processVideo(char* videoFilename) {
 
 
 		// HOG PEOPLE DETECTION -----------------------------------------------
-		vector<Rect> found, found_filtered;
-		double t = (double)getTickCount();
-		// run the detector with default parameters. to get a higher hit-rate
-		// (and more false alarms, respectively), decrease the hitThreshold and
-		// groupThreshold (set groupThreshold to 0 to turn off the grouping completely).
-		hog.detectMultiScale(frameResized, found, 0, Size(8,8), Size(0,0), 1.05, 2);
-		t = (double)getTickCount() - t; 
-		//cout << "detection time = " << t*1000./cv::getTickFrequency() << " - found objects: " << found.size() << endl;
-		avgPdTime += t*1000./cv::getTickFrequency();
 
-		size_t i, j;
-		for( i = 0; i < found.size(); i++ ) {
-			Rect r = found[i];
-			for( j = 0; j < found.size(); j++ )
-				if( j != i && (r & found[j]) == r)
-					break;
-			if( j == found.size() )
-				found_filtered.push_back(r);
-		}
+		// people detection solo sui frame pari
+		if( ((int)capture.get(CV_CAP_PROP_POS_FRAMES)) % 2 == 0){
 
-		// se trova più di una persona scorre tutti i risulati e tiene il rettangolo il cui centro
-		// è più vicino al centroide di movimento (quello che più probabilmente contiene la persona reale),
-		// in questo modo si elimina la possibilità di avere due persone detected in scena.
-		if(found_filtered.size() > 0){
-			Point2d movementCentroid(centroidX, centroidY);
+			vector<Rect> found, found_filtered;
+			double t = (double)getTickCount();
+			// run the detector with default parameters. to get a higher hit-rate
+			// (and more false alarms, respectively), decrease the hitThreshold and
+			// groupThreshold (set groupThreshold to 0 to turn off the grouping completely).
+			hog.detectMultiScale(frameResized, found, 0, Size(8,8), Size(0,0), 1.05, 2);
+			t = (double)getTickCount() - t; 
+			//cout << "detection time = " << t*1000./cv::getTickFrequency() << " - found objects: " << found.size() << endl;
+			avgPdTime += t*1000./cv::getTickFrequency();
 
-			Rect closestRect = found_filtered[0];
-			Point2d closestRectCenter(closestRect.x + closestRect.width/2 , closestRect.y + closestRect.height/2 );
-			double closestDistance = norm(closestRectCenter - movementCentroid);
-
-			for(i = 1; i < found_filtered.size(); i++){
-				Rect currRect = found_filtered[i];
-				Point2d currRectCenter(currRect.x + currRect.width/2 , currRect.y + currRect.height/2 );
-				double currDistance = norm(currRectCenter - movementCentroid);
-
-				if(currDistance < closestDistance){
-					closestDistance = currDistance;
-					closestRect = currRect;
-				}
+			size_t i, j;
+			for( i = 0; i < found.size(); i++ ) {
+				Rect r = found[i];
+				for( j = 0; j < found.size(); j++ )
+					if( j != i && (r & found[j]) == r)
+						break;
+				if( j == found.size() )
+					found_filtered.push_back(r);
 			}
 
-			// the HOG detector returns slightly larger rectangles than the real objects.
-			// so we slightly shrink the rectangles to get a nicer output.
-			closestRect.x += cvRound(closestRect.width*0.1) + leftX;
-			closestRect.width = cvRound(closestRect.width*0.8);
-			closestRect.y += cvRound(closestRect.height*0.07);
-			closestRect.height = cvRound(closestRect.height*0.8);
-			rectangle(frameDrawn, closestRect.tl(), closestRect.br(), cv::Scalar(0,255,0), 4);
+			Rect closestRect;
 
+			// se trova più di una persona scorre tutti i risulati e tiene il rettangolo il cui centro
+			// è più vicino al centroide di movimento (quello che più probabilmente contiene la persona reale),
+			// in questo modo si elimina la possibilità di avere due persone detected in scena.
+			if(found_filtered.size() > 0){
+				Point2d movementCentroid(centroidX, centroidY);
+
+				closestRect = found_filtered[0];
+				Point2d closestRectCenter(closestRect.x + closestRect.width/2 , closestRect.y + closestRect.height/2 );
+				double closestDistance = norm(closestRectCenter - movementCentroid);
+
+				for(i = 1; i < found_filtered.size(); i++){
+					Rect currRect = found_filtered[i];
+					Point2d currRectCenter(currRect.x + currRect.width/2 , currRect.y + currRect.height/2 );
+					double currDistance = norm(currRectCenter - movementCentroid);
+
+					if(currDistance < closestDistance){
+						closestDistance = currDistance;
+						closestRect = currRect;
+					}
+				}
+
+				// the HOG detector returns slightly larger rectangles than the real objects.
+				// so we slightly shrink the rectangles to get a nicer output.
+				closestRect.x += cvRound(closestRect.width*0.1) + leftX;
+				closestRect.width = cvRound(closestRect.width*0.8);
+				closestRect.y += cvRound(closestRect.height*0.07);
+				closestRect.height = cvRound(closestRect.height*0.8);
+				rectangle(frameDrawn, closestRect.tl(), closestRect.br(), cv::Scalar(0,255,0), 4);
+
+			}
+			else {
+				// se il people detector non ha trovato niente allora usiamo la banalissima predizione lineare
+
+			}
 		}
 
 		// Disegna tutti i risultati della people detection

@@ -19,6 +19,9 @@ using namespace std;
 // ------------------ COSTANTI --------------------------------
 const Size STD_SIZE(640, 480); // Risoluzione a cui viene resizato qualsiasi frame
 const float MOG_LEARNING_RATE = 0.05f; // Learning rate della BG subtraction (sia per MOG che MOG2)
+const Scalar RED	= Scalar(0,0,255);
+const Scalar GREEN	= Scalar(0,255,0);
+const Scalar BLUE	= Scalar(255,0,0);
 
 // ------------------ VARIABILI -------------------------------
 Mat frame; //current frame
@@ -33,8 +36,15 @@ float avgBsTime = 0;
 float avgPdTime = 0;
 float fps = 0;
 
+// 
+Rect closestRect, tmpClosestRect;
+// vettore di predizione
+Point2d predictionVect(0, 0);
+
 // Variabili utilizzate nell'estrazione dell'area di interesse
 int leftX = 0, rightX = 0;
+
+int xOffset = 0;
 
 // Inizializzazione utile nel caso non trovi contorni
 Mat3b frameResized = Mat3b(STD_SIZE.height, 250);
@@ -42,12 +52,15 @@ Mat3b frameResized = Mat3b(STD_SIZE.height, 250);
 // Dichiarazione delle funzioni
 void help();
 void processVideo(char* videoFilename);
-
+void drawRectOnFrameDrawn( Rect closestRect, Mat frameDrawn, cv::Scalar color, int thickness, int xOffset);
 
 template <typename T>  bool IsInBounds(const T& value, const T& low, const T& high) {
 	return !(value < low) && !(high < value);
 }
 
+template <typename T> int sign (T val) {
+	return (T(0)<val) - (val<T(0));
+}
 
 // ------------------ MAIN -------------------------------
 int main(int argc, char* argv[])
@@ -69,7 +82,7 @@ int main(int argc, char* argv[])
 	namedWindow("Background Subtraction and People Detector");
 
 	//create Background Subtractor objects
-	pMOG= new BackgroundSubtractorMOG(); //MOG approach
+	pMOG= new BackgroundSubtractorMOG2(); //MOG approach
 	pMOG2 = new BackgroundSubtractorMOG2(); //MOG2 approach
 
 	if(strcmp(argv[1], "-vid") == 0) {
@@ -91,7 +104,6 @@ int main(int argc, char* argv[])
 	cout << "Tempo medio per la People Detection: " << avgPdTime/countTotalFrame << endl;
 	cout << "FPS: " << countTotalFrame/(fps/1000) << endl;
 
-	// pause, wait for key
 	system("pause");
 
 	//destroy GUI windows
@@ -115,8 +127,7 @@ void processVideo(char* videoFilename) {
 		exit(EXIT_FAILURE);
 	}
 
-	// 
-	Point2d predictionVect();
+
 
 	//read input data. ESC or 'q' for quitting
 	while( (char)keyboard != 'q' && (char)keyboard != 27 ) {
@@ -188,7 +199,7 @@ void processVideo(char* videoFilename) {
 				}
 			}
 			// [DEBUG] Disegna il boundingRect del contorno di area maggiore
-			rectangle(frameDrawn, boundingRect(contours[largestContourIndex]), Scalar(255,0,0), 3);
+			rectangle(frameDrawn, boundingRect(contours[largestContourIndex]), BLUE, 3);
 
 
 			// Calcola la posizione del centroide
@@ -200,7 +211,7 @@ void processVideo(char* videoFilename) {
 			centroidY = accumulate(cmContoursY.begin(), cmContoursY.end(), (largestContourWeight-1)*cmContoursY[largestContourIndex])
 				/ (contours.size()+(largestContourWeight-1));
 			// [DEBUG] Visualizza il centroide (in rosso)
-			circle(frameDrawn, Point2d(centroidX, centroidY), 7, Scalar(0,0,255), 3);
+			circle(frameDrawn, Point2d(centroidX, centroidY), 7, RED, 3);
 
 			// Dimensioni della ROI (questa parte si può collassare nella successiva secondo me)
 			leftX = centroidX - 125;
@@ -220,10 +231,10 @@ void processVideo(char* videoFilename) {
 		// ---------------------------------------------------------------------------------------------
 
 
-		// HOG PEOPLE DETECTION -----------------------------------------------
+		// HOG PEOPLE DETECTION ------------------------------------------------------------------------
 
 		// people detection solo sui frame pari
-		if( ((int)capture.get(CV_CAP_PROP_POS_FRAMES)) % 2 == 0){
+		if( ((int)capture.get(CV_CAP_PROP_POS_FRAMES)) % 4 == 0){
 
 			vector<Rect> found, found_filtered;
 			double t = (double)getTickCount();
@@ -245,16 +256,18 @@ void processVideo(char* videoFilename) {
 					found_filtered.push_back(r);
 			}
 
-			Rect closestRect;
-
+			
 			// se trova più di una persona scorre tutti i risulati e tiene il rettangolo il cui centro
 			// è più vicino al centroide di movimento (quello che più probabilmente contiene la persona reale),
 			// in questo modo si elimina la possibilità di avere due persone detected in scena.
 			if(found_filtered.size() > 0){
+
+				xOffset = leftX;
+
 				Point2d movementCentroid(centroidX, centroidY);
 
-				closestRect = found_filtered[0];
-				Point2d closestRectCenter(closestRect.x + closestRect.width/2 , closestRect.y + closestRect.height/2 );
+				tmpClosestRect = found_filtered[0];
+				Point2d closestRectCenter(tmpClosestRect.x + tmpClosestRect.width/2 , tmpClosestRect.y + tmpClosestRect.height/2 );
 				double closestDistance = norm(closestRectCenter - movementCentroid);
 
 				for(i = 1; i < found_filtered.size(); i++){
@@ -264,37 +277,41 @@ void processVideo(char* videoFilename) {
 
 					if(currDistance < closestDistance){
 						closestDistance = currDistance;
-						closestRect = currRect;
+						tmpClosestRect = currRect;
 					}
 				}
 
-				// the HOG detector returns slightly larger rectangles than the real objects.
-				// so we slightly shrink the rectangles to get a nicer output.
-				closestRect.x += cvRound(closestRect.width*0.1) + leftX;
-				closestRect.width = cvRound(closestRect.width*0.8);
-				closestRect.y += cvRound(closestRect.height*0.07);
-				closestRect.height = cvRound(closestRect.height*0.8);
-				rectangle(frameDrawn, closestRect.tl(), closestRect.br(), cv::Scalar(0,255,0), 4);
+				// se ho trovato il rettangolo più vicino aggiorno il predictionVect
+
+				predictionVect.x = sign(tmpClosestRect.x - closestRect.x);
+				predictionVect.y = sign(tmpClosestRect.y - closestRect.y);
+
+				closestRect = tmpClosestRect;
+
+				// Disegna il rettangolo sul frame
+				drawRectOnFrameDrawn(closestRect, frameDrawn, GREEN, 4, xOffset);
 
 			}
 			else {
-				// se il people detector non ha trovato niente allora usiamo la banalissima predizione lineare
+				// frame pari ma non è stata trovata la persona
+				if((predictionVect.x != 0) || (predictionVect.y!=0)) {
+					closestRect.x += predictionVect.x;
+					closestRect.y += predictionVect.y;
+					drawRectOnFrameDrawn(closestRect, frameDrawn, GREEN, 4, xOffset);
 
+				}
+			}
+		}
+		else {
+			// frame dispari
+			if((predictionVect.x != 0) || (predictionVect.y!=0)) {
+				closestRect.x += predictionVect.x;
+				closestRect.y += predictionVect.y;
+				// Disegna il rettangolo sul frame
+				drawRectOnFrameDrawn(closestRect, frameDrawn, GREEN, 4, xOffset);
 			}
 		}
 
-		// Disegna tutti i risultati della people detection
-
-		//for( i = 0; i < found_filtered.size(); i++ ){
-		//	Rect r = found_filtered[i];
-		//	// the HOG detector returns slightly larger rectangles than the real objects.
-		//	// so we slightly shrink the rectangles to get a nicer output.
-		//	r.x += cvRound(r.width*0.1) + leftX;
-		//	r.width = cvRound(r.width*0.8);
-		//	r.y += cvRound(r.height*0.07);
-		//	r.height = cvRound(r.height*0.8);
-		//	rectangle(frameDrawn, r.tl(), r.br(), cv::Scalar(0,255,0), 1);
-		//}
 
 		//show the current frame and the fg masks
 		imshow("Frame", frame);
@@ -314,7 +331,15 @@ void processVideo(char* videoFilename) {
 
 }
 
+void drawRectOnFrameDrawn( Rect closestRect, Mat frameDrawn, cv::Scalar color, int thickness, int xOffset) {
 
+	closestRect.x += cvRound(closestRect.width*0.1) + xOffset;
+	closestRect.width = cvRound(closestRect.width*0.8);
+	closestRect.y += cvRound(closestRect.height*0.07);
+	closestRect.height = cvRound(closestRect.height*0.8);
+	rectangle(frameDrawn, closestRect.tl(), closestRect.br(), color, thickness);
+
+}
 
 
 void help()

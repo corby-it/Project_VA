@@ -392,7 +392,7 @@ string FrameAnalyzer::getBgName(char* filename){
 	}
 	else { // se non ne trova nessuno ritorna il video originale
 		ss.clear();
-		ss << "dataset/" << filename;
+		ss << "dataset/" << strFname;
 		return ss.str();
 	}
 }

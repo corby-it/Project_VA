@@ -48,6 +48,22 @@ FrameAnalyzer::FrameAnalyzer(char* videoFilename, int mog)
 	// imposto il pepole detector
 	hog.setSVMDetector(HOGDescriptor::getDefaultPeopleDetector());
 
+	// inizializzo il background
+	bgName = getBgName(filename);
+
+	VideoCapture bgCapture(bgName);
+	if(!bgCapture.isOpened()){
+		// errore nell'aprire il file di background
+		cerr << "Impossibile aprire il file di background: " << bgName << endl;
+		// TODO magari si potrebbe fare qualcosa di più user-friendly piuttosto che chiudere tutto il programma...
+		exit(EXIT_FAILURE);
+	}
+	else {
+		// leggo il primo frame dal file di background e lo metto in frameBg (resizato)
+		bgCapture.read(frameBg);
+		resize(frameBg, frameBg, STD_SIZE);
+	}
+
 	// crea l'oggetto capture
 	capture = VideoCapture(filename); // o 0 per webcam!
 	if(!capture.isOpened()){
@@ -103,12 +119,28 @@ bool FrameAnalyzer::processFrame() {
 	// BACKGROUND SUBTRACTION --------------------------------------------
 
 	double s = (double)getTickCount();
-	pMOG->operator()(frame, fgMaskMOG, MOG_LEARNING_RATE);
+
+	// vecchia bg subtraction fatta con MOG
+	// pMOG->operator()(frame, fgMaskMOG, MOG_LEARNING_RATE);
+
+	Mat tmpDiff;
+	Mat1b tmpDiffGray;
+
+	// sottraggo il BG al frame corrente
+	absdiff(frame, frameBg, tmpDiff);
+	//imshow("tmpDiff", tmpDiff);
+
+	// converto l'immagine differenza in scala di grigi
+	cvtColor(tmpDiff, tmpDiffGray, CV_RGB2GRAY);
+	//imshow("tmpDiffGray", tmpDiffGray);
+
+	// soglia di otsu su tmpDiffGray
+	threshold(tmpDiffGray, fgMaskMOG, 128, 255, CV_THRESH_OTSU);
+
 	s = (double)getTickCount() - s;
 	avgBsTime += s*1000./cv::getTickFrequency();
 
-
-	// FILTERING
+	// FILTERING e MORFOLOGIA SU fgMaskMOG per ottenere una silhouette migliore 
 	medianBlur(fgMaskMOG, fgMaskMOG, 15);
 	dilate(fgMaskMOG, fgMaskMOG, Mat(), Point(-1, -1), 2, 1, 1);
 
@@ -116,7 +148,8 @@ bool FrameAnalyzer::processFrame() {
 	std::vector<std::vector<cv::Point> > contours;
 	std::vector<std::vector<cv::Point> > inBoundContours;
 	std::vector<cv::Vec4i> hierarchy;
-	findContours( fgMaskMOG, contours, hierarchy, RETR_CCOMP, cv::CHAIN_APPROX_TC89_KCOS);
+	// passo un clone di fgMaskMOG per fare in modo che non la modifichi
+	findContours( fgMaskMOG.clone(), contours, hierarchy, RETR_CCOMP, cv::CHAIN_APPROX_TC89_KCOS);
 
 	// ---------------------------------------------------------------------------------------------
 	// Trova il centro di massa di ogni contorno (trovato dopo il filtering)
@@ -265,8 +298,7 @@ bool FrameAnalyzer::processFrame() {
 	//show the current frame and the fg masks
 	imshow("Frame", frame);
 	imshow("frameResized", frameResized);
-	imshow("FG Mask MOG", fgMaskMOG);
-	//imshow("FG Mask MOG 2", fgMaskMOG2);
+	imshow("FG Mask MOG - Silhouette", fgMaskMOG);
 	imshow("Background Subtraction and People Detector", frameDrawn);
 
 	//get the input from the keyboard
@@ -283,6 +315,69 @@ void FrameAnalyzer::drawRectOnFrameDrawn( Rect closestRect, Mat frameDrawn, cv::
 	closestRect.height = cvRound(closestRect.height*0.8);
 	rectangle(frameDrawn, closestRect.tl(), closestRect.br(), color, thickness);
 
+}
+
+string FrameAnalyzer::getBgName(char* filename){
+
+	stringstream ss;
+	ss << "backgrounds/";
+
+	string strFname(filename);
+	strFname = strFname.substr(strFname.find_first_of("/")+1);
+
+	if(strcmp(strFname.data(), "daria_bend.avi") == 0 || strcmp(strFname.data(), "daria_jack.avi") == 0 ||strcmp(strFname.data(), "daria_wave1.avi") == 0 ||strcmp(strFname.data(), "daria_wave2.avi") == 0){
+		ss << "bg_015.avi";
+		return ss.str();
+	}
+	else if(strcmp(strFname.data(), "denis_bend.avi") == 0 || strcmp(strFname.data(), "daria_jack.avi") == 0 || strcmp(strFname.data(), "denis_pjump.avi") == 0 || strcmp(strFname.data(), "denis_wave1.avi") == 0 || strcmp(strFname.data(), "denis_wave2.avi") == 0 ){
+		ss << "bg_026.avi";
+		return ss.str();
+	}
+	else if(strcmp(strFname.data(), "eli_bend.avi") == 0 || strcmp(strFname.data(), "eli_pjump.avi") == 0 ||strcmp(strFname.data(), "eli_wave1.avi") == 0 ||strcmp(strFname.data(), "eli_wave2.avi") == 0){
+		ss << "bg_062.avi";
+		return ss.str();
+	}
+	else if(strcmp(strFname.data(), "ido_bend.avi") == 0 || strcmp(strFname.data(), "ido_jack.avi") == 0 || strcmp(strFname.data(), "ido_pjump.avi") == 0 || strcmp(strFname.data(), "ido_wave1.avi") == 0 || strcmp(strFname.data(), "ido_wave2.avi") == 0){
+		ss << "bg_062.avi";
+		return ss.str();
+	}
+	else if(strcmp(strFname.data(), "ira_bend.avi") == 0 || strcmp(strFname.data(), "ira_jack.avi") == 0 || strcmp(strFname.data(), "ira_pjump.avi") == 0 || strcmp(strFname.data(), "ira_wave1.avi") == 0 || strcmp(strFname.data(), "ira_wave2.avi") == 0){
+		ss << "bg_007.avi";
+		return ss.str();
+	}
+	else if(strcmp(strFname.data(), "lena_bend.avi") == 0 || strcmp(strFname.data(), "lena_pjump.avi") == 0 || strcmp(strFname.data(), "lena_wave1.avi") == 0 || strcmp(strFname.data(), "lena_wave2.avi") == 0 || strcmp(strFname.data(), "daria_pjump.avi") == 0){
+		ss << "bg_038.avi";
+		return ss.str();
+	}
+	else if(strcmp(strFname.data(), "lyova_bend.avi") == 0 || strcmp(strFname.data(), "lyova_jack.avi") == 0 || strcmp(strFname.data(), "lyova_pjump.avi") == 0 || strcmp(strFname.data(), "lyova_wave1.avi") == 0 || strcmp(strFname.data(), "lyova_wave2.avi") == 0){
+		ss << "bg_046.avi";
+		return ss.str();
+	}
+	else if(strcmp(strFname.data(), "moshe_bend.avi") == 0 || strcmp(strFname.data(), "moshe_pjump.avi") == 0 ||strcmp(strFname.data(), "moshe_wave1.avi") == 0 ||strcmp(strFname.data(), "moshe_wave2.avi") == 0){
+		ss << "bg_070.avi";
+		return ss.str();
+	}
+	else if(strcmp(strFname.data(), "shahar_walk.avi") == 0 || strcmp(strFname.data(), "shahar_pjump.avi") == 0 ||strcmp(strFname.data(), "shahar_wave1.avi") == 0 ||strcmp(strFname.data(), "shahar_wave2.avi") == 0){
+		ss << "bg_079.avi";
+		return ss.str();
+	}
+	else if(strcmp(strFname.data(), "moshe_jack.avi") == 0 ){
+		ss << "moshe_bg_run.avi";
+		return ss.str();
+	}
+	else if(strcmp(strFname.data(), "shahar_jack.avi") == 0 || strcmp(strFname.data(), "eli_jack.avi") == 0){
+		ss << "shahar_bg_run.avi";
+		return ss.str();
+	}
+	else if(strcmp(strFname.data(), "lena_jack.avi") == 0 ){
+		ss << "lena_bg_jack.avi";
+		return ss.str();
+	}
+	else { // se non ne trova nessuno ritorna il video originale
+		ss.clear();
+		ss << "dataset/" << filename;
+		return ss.str();
+	}
 }
 
 FrameAnalyzer::~FrameAnalyzer(void){}

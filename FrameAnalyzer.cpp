@@ -12,6 +12,8 @@
 
 #include "FrameAnalyzer.h"
 
+#include "utils.h"
+
 using namespace std;
 using namespace cv;
 
@@ -142,7 +144,7 @@ bool FrameAnalyzer::processFrame() {
 
 	// FILTERING e MORFOLOGIA SU fgMaskMOG per ottenere una silhouette migliore 
 	medianBlur(fgMaskMOG, fgMaskMOG, 15);
-	dilate(fgMaskMOG, fgMaskMOG, Mat(), Point(-1, -1), 2, 1, 1);
+	/*dilate(fgMaskMOG, fgMaskMOG, Mat(), Point(-1, -1), 2, 1, 1);*/
 
 	// disegna una bounding box BLU attorno alle zone di foreground
 	std::vector<std::vector<cv::Point> > contours;
@@ -294,6 +296,21 @@ bool FrameAnalyzer::processFrame() {
 		}
 	}
 
+
+	// -------------------- CALCOLO DELL'ISTOGRAMMA--------------------------------
+	int numberBins = 10;
+	vector<double> featureVector(numberBins, 0);
+
+	bool createThe2HistogramImages = false;
+	vector<Mat> histogramImages(2);
+
+	if(closestRect.area()>0){
+		computeFeatureVector ( fgMaskMOG, closestRect, numberBins, featureVector, histogramImages, createThe2HistogramImages );
+		if(createThe2HistogramImages) {
+			for(int i=0; i<histogramImages.size(); ++i)
+				imshow("Histogram "+to_string(i+1), histogramImages[i]);
+		}
+	}
 
 	//show the current frame and the fg masks
 	imshow("Frame", frame);

@@ -58,6 +58,7 @@ FrameAnalyzer::FrameAnalyzer(char* videoFilename, int mog)
 		// errore nell'aprire il file di background
 		cerr << "Impossibile aprire il file di background: " << bgName << endl;
 		// TODO magari si potrebbe fare qualcosa di più user-friendly piuttosto che chiudere tutto il programma...
+		system("pause");
 		exit(EXIT_FAILURE);
 	}
 	else {
@@ -72,6 +73,7 @@ FrameAnalyzer::FrameAnalyzer(char* videoFilename, int mog)
 		// errore nell'aprire il file in input
 		cerr << "Impossibile aprire il file video: " << filename << endl;
 		// TODO magari si potrebbe fare qualcosa di più user-friendly piuttosto che chiudere tutto il programma...
+		system("pause");
 		exit(EXIT_FAILURE);
 	}
 
@@ -370,7 +372,7 @@ string FrameAnalyzer::getBgName(char* filename){
 		ss << "bg_046.avi";
 		return ss.str();
 	}
-	else if(strcmp(strFname.data(), "moshe_bend.avi") == 0 || strcmp(strFname.data(), "moshe_pjump.avi") == 0 ||strcmp(strFname.data(), "moshe_wave1.avi") == 0 ||strcmp(strFname.data(), "moshe_wave2.avi") == 0){
+	else if(strcmp(strFname.data(), "moshe_bend.avi") == 0 || strcmp(strFname.data(), "moshe_pjump.avi") == 0 ||strcmp(strFname.data(), "moshe_wave1.avi") == 0 ||strcmp(strFname.data(), "moshe_wave2.avi") == 0 ||strcmp(strFname.data(), "moshe_walk.avi") == 0){
 		ss << "bg_070.avi";
 		return ss.str();
 	}

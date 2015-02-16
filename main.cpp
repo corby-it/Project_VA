@@ -32,6 +32,7 @@ int main(int argc, char* argv[])
 	if(argc != 3) {
 		cerr <<"Incorret input list" << endl;
 		cerr <<"exiting..." << endl;
+		system("pause");
 		return EXIT_FAILURE;
 	}
 
@@ -46,6 +47,7 @@ int main(int argc, char* argv[])
 		//error in reading input parameters
 		cerr <<"Please, check the input parameters." << endl;
 		cerr <<"Exiting..." << endl;
+		system("pause");
 		return EXIT_FAILURE;
 	}
 
@@ -53,7 +55,7 @@ int main(int argc, char* argv[])
 
 	//destroy GUI windows
 	destroyAllWindows();
-
+	system("pause");
 	return EXIT_SUCCESS;
 }
 

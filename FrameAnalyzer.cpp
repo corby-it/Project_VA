@@ -21,61 +21,61 @@ FrameAnalyzer::FrameAnalyzer(char* videoFilename, int mog)
 	: MOG_LEARNING_RATE(0.05f), STD_SIZE(Size(640,480)), RED(Scalar(0,0,255)), GREEN(Scalar(0,255,0)), BLUE(Scalar(255,0,0)),
 	filename(videoFilename), mogType(mog) {
 
-	// inizializzazione variabili
-	predictionVect = Point2d(0, 0);
+		// inizializzazione variabili
+		predictionVect = Point2d(0, 0);
 
-	leftX = 0;
-	rightX = 0;
-	xOffset = 0;
+		leftX = 0;
+		rightX = 0;
+		xOffset = 0;
 
-	avgBsTime = 0;
-	avgPdTime = 0;
+		avgBsTime = 0;
+		avgPdTime = 0;
 
-	// Inizializzazione utile nel caso non trovi contorni
-	frameResized = Mat3b(STD_SIZE.height, 250);
+		// Inizializzazione utile nel caso non trovi contorni
+		frameResized = Mat3b(STD_SIZE.height, 250);
 
-	// crea le finestre dell'interfaccia
-	namedWindow("Frame");
-	namedWindow("FG Mask MOG");
-	namedWindow("Background Subtraction and People Detector");
+		// crea le finestre dell'interfaccia
+		namedWindow("Frame");
+		namedWindow("FG Mask MOG");
+		namedWindow("Background Subtraction and People Detector");
 
-	// impostazione del background suppressor
-	switch (mogType){
-	case 0:
-		pMOG = new BackgroundSubtractorMOG(); break; //MOG approach
-	case 1:
-		pMOG = new BackgroundSubtractorMOG2(); break; //MOG2 approach
-	}
+		// impostazione del background suppressor
+		switch (mogType){
+		case 0:
+			pMOG = new BackgroundSubtractorMOG(); break; //MOG approach
+		case 1:
+			pMOG = new BackgroundSubtractorMOG2(); break; //MOG2 approach
+		}
 
-	// imposto il pepole detector
-	hog.setSVMDetector(HOGDescriptor::getDefaultPeopleDetector());
+		// imposto il pepole detector
+		hog.setSVMDetector(HOGDescriptor::getDefaultPeopleDetector());
 
-	// inizializzo il background
-	bgName = getBgName(filename);
+		// inizializzo il background
+		bgName = getBgName(filename);
 
-	VideoCapture bgCapture(bgName);
-	if(!bgCapture.isOpened()){
-		// errore nell'aprire il file di background
-		cerr << "Impossibile aprire il file di background: " << bgName << endl;
-		// TODO magari si potrebbe fare qualcosa di più user-friendly piuttosto che chiudere tutto il programma...
-		system("pause");
-		exit(EXIT_FAILURE);
-	}
-	else {
-		// leggo il primo frame dal file di background e lo metto in frameBg (resizato)
-		bgCapture.read(frameBg);
-		resize(frameBg, frameBg, STD_SIZE);
-	}
+		VideoCapture bgCapture(bgName);
+		if(!bgCapture.isOpened()){
+			// errore nell'aprire il file di background
+			cerr << "Impossibile aprire il file di background: " << bgName << endl;
+			// TODO magari si potrebbe fare qualcosa di più user-friendly piuttosto che chiudere tutto il programma...
+			system("pause");
+			exit(EXIT_FAILURE);
+		}
+		else {
+			// leggo il primo frame dal file di background e lo metto in frameBg (resizato)
+			bgCapture.read(frameBg);
+			resize(frameBg, frameBg, STD_SIZE);
+		}
 
-	// crea l'oggetto capture
-	capture = VideoCapture(filename); // o 0 per webcam!
-	if(!capture.isOpened()){
-		// errore nell'aprire il file in input
-		cerr << "Impossibile aprire il file video: " << filename << endl;
-		// TODO magari si potrebbe fare qualcosa di più user-friendly piuttosto che chiudere tutto il programma...
-		system("pause");
-		exit(EXIT_FAILURE);
-	}
+		// crea l'oggetto capture
+		capture = VideoCapture(filename); // o 0 per webcam!
+		if(!capture.isOpened()){
+			// errore nell'aprire il file in input
+			cerr << "Impossibile aprire il file video: " << filename << endl;
+			// TODO magari si potrebbe fare qualcosa di più user-friendly piuttosto che chiudere tutto il programma...
+			system("pause");
+			exit(EXIT_FAILURE);
+		}
 
 }
 
@@ -125,28 +125,28 @@ bool FrameAnalyzer::processFrame() {
 	double s = (double)getTickCount();
 
 	// vecchia bg subtraction fatta con MOG
-	// pMOG->operator()(frame, fgMaskMOG, MOG_LEARNING_RATE);
+	pMOG->operator()(frame, fgMaskMOG, MOG_LEARNING_RATE);
 
-	Mat tmpDiff;
-	Mat1b tmpDiffGray;
+	//Mat tmpDiff;
+	//Mat1b tmpDiffGray;
 
-	// sottraggo il BG al frame corrente
-	absdiff(frame, frameBg, tmpDiff);
-	//imshow("tmpDiff", tmpDiff);
+	//// sottraggo il BG al frame corrente
+	//absdiff(frame, frameBg, tmpDiff);
+	////imshow("tmpDiff", tmpDiff);
 
-	// converto l'immagine differenza in scala di grigi
-	cvtColor(tmpDiff, tmpDiffGray, CV_RGB2GRAY);
-	//imshow("tmpDiffGray", tmpDiffGray);
+	//// converto l'immagine differenza in scala di grigi
+	//cvtColor(tmpDiff, tmpDiffGray, CV_RGB2GRAY);
+	////imshow("tmpDiffGray", tmpDiffGray);
 
-	// soglia di otsu su tmpDiffGray
-	threshold(tmpDiffGray, fgMaskMOG, 128, 255, CV_THRESH_OTSU);
+	//// soglia di otsu su tmpDiffGray
+	//threshold(tmpDiffGray, fgMaskMOG, 128, 255, CV_THRESH_OTSU);
 
 	s = (double)getTickCount() - s;
 	avgBsTime += s*1000./cv::getTickFrequency();
 
 	// FILTERING e MORFOLOGIA SU fgMaskMOG per ottenere una silhouette migliore 
 	medianBlur(fgMaskMOG, fgMaskMOG, 15);
-	/*dilate(fgMaskMOG, fgMaskMOG, Mat(), Point(-1, -1), 2, 1, 1);*/
+	dilate(fgMaskMOG, fgMaskMOG, Mat(), Point(-1, -1), 2, 1, 1);
 
 	// disegna una bounding box BLU attorno alle zone di foreground
 	std::vector<std::vector<cv::Point> > contours;
@@ -214,6 +214,31 @@ bool FrameAnalyzer::processFrame() {
 			Rect newRect = Rect(leftX, 0, abs(rightX-leftX), STD_SIZE.height);
 			frameResized = Mat3b(STD_SIZE.height, 250);
 			frameResized = frame(newRect);
+
+			Mat3b frameBgResized(STD_SIZE.height, 250); 
+			frameBgResized = frameBg(newRect);
+
+			Mat tmpDiff;
+			Mat1b tmpDiffGray;
+
+			// sottraggo il BG al frameresized corrente
+			absdiff(frameResized, frameBgResized, tmpDiff);
+			//imshow("tmpDiff", tmpDiff);
+
+			// converto l'immagine differenza in scala di grigi
+			cvtColor(tmpDiff, tmpDiffGray, CV_RGB2GRAY);
+			imshow("tmpDiffGray", tmpDiffGray);
+
+			// soglia di otsu su tmpDiffGray
+			threshold(tmpDiffGray, tmpDiffGray, 128, 255, CV_THRESH_OTSU);
+
+			/* riscrivo fgMaskMOG tutta nera e ci incollo sopra la bg subtraction
+			fatta solo su frame resized */
+			fgMaskMOG.setTo(Scalar(0,0,0));
+			tmpDiffGray.copyTo(fgMaskMOG(newRect));
+			dilate(fgMaskMOG, fgMaskMOG, Mat(), Point(-1, -1), 2, 1, 1);
+			erode(fgMaskMOG, fgMaskMOG, Mat(), Point(-1, -1), 2, 1, 1);
+
 		}
 	}
 	// ---------------------------------------------------------------------------------------------
@@ -303,7 +328,7 @@ bool FrameAnalyzer::processFrame() {
 	int numberBins = 10;
 	vector<double> featureVector(numberBins, 0);
 
-	bool createThe2HistogramImages = false;
+	bool createThe2HistogramImages = true;
 	vector<Mat> histogramImages(2);
 
 	if(closestRect.area()>0){
@@ -322,7 +347,7 @@ bool FrameAnalyzer::processFrame() {
 
 	//get the input from the keyboard
 	keyboard = waitKey(1);
-	
+
 	return true;
 }
 

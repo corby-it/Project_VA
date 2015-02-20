@@ -24,6 +24,8 @@ FrameAnalyzer::FrameAnalyzer(char* videoFilename, int mog)
 		// inizializzazione variabili
 		predictionVect = Point2d(0, 0);
 
+		initial = true;
+
 		leftX = 0;
 		rightX = 0;
 		xOffset = 0;
@@ -125,8 +127,13 @@ bool FrameAnalyzer::processFrame() {
 
 	double s = (double)getTickCount();
 
-	// vecchia bg subtraction fatta con MOG
-	pMOG->operator()(frame, fgMaskMOG, MOG_LEARNING_RATE);
+	if(initial){
+		resize(frameInit, frameInit, STD_SIZE);
+		pMOG->operator()(frameInit, fgMaskMOG, MOG_LEARNING_RATE);
+		initial = false;
+	}
+	else
+		pMOG->operator()(frame, fgMaskMOG, MOG_LEARNING_RATE);
 
 	//Mat tmpDiff;
 	//Mat1b tmpDiffGray;
@@ -458,6 +465,9 @@ string FrameAnalyzer::getBgName2(char* filename){
 	}
 	Mat3b frame;
 	video.read(frame);
+
+	//Inizializzo frame di background
+	frameInit = frame.clone();
 
 	//Cerco a quale background assomiglia di più
 	int min = INT_MAX;

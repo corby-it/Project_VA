@@ -11,7 +11,7 @@
 #include <cstdint>
 
 #include "FrameAnalyzer.h"
-
+#include "dirent.h"
 #include "utils.h"
 
 using namespace std;
@@ -51,7 +51,8 @@ FrameAnalyzer::FrameAnalyzer(char* videoFilename, int mog)
 		hog.setSVMDetector(HOGDescriptor::getDefaultPeopleDetector());
 
 		// inizializzo il background
-		bgName = getBgName(filename);
+		bgName = getBgName2(filename);
+		cout << "Background selezionato: " << bgName << endl;
 
 		VideoCapture bgCapture(bgName);
 		if(!bgCapture.isOpened()){
@@ -419,9 +420,90 @@ string FrameAnalyzer::getBgName(char* filename){
 	}
 	else { // se non ne trova nessuno ritorna il video originale
 		ss.clear();
+		cout << "Filename non trovato!" << endl;
 		ss << "dataset/" << strFname;
 		return ss.str();
 	}
+}
+
+string FrameAnalyzer::getBgName2(char* filename){
+	string path = "backgrounds/";
+	vector<string> name_bg;
+
+	DIR* dir;
+	dir = opendir(path.c_str());
+
+	//Carico il vettore con i nomi dei file presenti nella cartella backgrounds
+	if(dir){
+		dirent* file;
+		while((file = readdir(dir))){
+			string tmp = file->d_name;
+			if( (tmp.compare(".") != 0) && (tmp.compare("..") != 0) && (tmp.compare("Thumbs.db") != 0)){
+				name_bg.push_back(tmp);
+			}
+		}
+	}
+	else{
+		cout << "Percorso cartella background errato!" << endl;
+		system("pause");
+		exit(EXIT_FAILURE);
+	}
+
+	//Carico il primo frame del video dato in input
+	VideoCapture video(filename);
+	if(!video.isOpened()){
+		cout << "Impossibile aprire per inizializzare il background il video: " << filename << endl;
+		system("pause");
+		exit(EXIT_FAILURE);
+	}
+	Mat3b frame;
+	video.read(frame);
+
+	//Cerco a quale background assomiglia di più
+	int min = INT_MAX;
+	string best; 
+
+	//Per ogni video di background
+	for(int i=0; i<name_bg.size(); ++i){
+
+		//Apro il video di background
+		string prefix = "backgrounds/";
+		prefix.append(name_bg[i]);
+		VideoCapture vid_bg(prefix); 
+		if(!video.isOpened()){
+			cout << "Impossibile aprire il video di background: " << filename << endl;
+			system("pause");
+			exit(EXIT_FAILURE);
+		}
+		else{
+
+			//Carico il primo fotogramma
+			Mat3b frame_bg;
+			vid_bg.read(frame_bg);
+
+			//Calcolo la distanza
+			int score = 0;
+			for(int c=0; c<frame.cols;++c){
+				for(int r=0; r<frame.rows; ++r){
+					score +=  abs(((int)frame(r,c)[0]) - ((int)frame_bg(r,c)[0]));
+					score +=  abs(((int)frame(r,c)[1]) - ((int)frame_bg(r,c)[1]));
+					score +=  abs(((int)frame(r,c)[2]) - ((int)frame_bg(r,c)[2]));
+				}
+			}
+
+			//Verifico se è la migliore distanza
+			if(score<min){
+				min = score;
+				best = name_bg[i];
+			}
+		}
+	}
+
+	//Costruisco il path corretto
+	path.append(best);
+
+	return path;
+
 }
 
 FrameAnalyzer::~FrameAnalyzer(void){}

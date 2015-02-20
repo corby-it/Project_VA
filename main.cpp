@@ -77,6 +77,7 @@ void videoProcessing(char* filename){
 
 		// quando arriva alla fine esco comunque dal while
 		if(!frameAnalyzer.processFrame()) break;
+		waitKey(1);
 
 	}
 	t = (double)getTickCount() - t; 

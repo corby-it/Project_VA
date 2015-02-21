@@ -18,7 +18,7 @@ using namespace std;
 using namespace cv;
 
 FrameAnalyzer::FrameAnalyzer(char* videoFilename, int mog)
-	: MOG_LEARNING_RATE(0.03), STD_SIZE(Size(640,480)), RED(Scalar(0,0,255)), GREEN(Scalar(0,255,0)), BLUE(Scalar(255,0,0)),
+	: MOG_LEARNING_RATE(0.05), STD_SIZE(Size(640,480)), RED(Scalar(0,0,255)), GREEN(Scalar(0,255,0)), BLUE(Scalar(255,0,0)),
 	filename(videoFilename), mogType(mog) {
 
 		// inizializzazione variabili
@@ -158,8 +158,8 @@ bool FrameAnalyzer::processFrame() {
 	// Trova il centro di massa di ogni contorno (trovato dopo il filtering)
 	// Calcola poi il centroide della nuvola di punti per stabilire il punto centrale del movimento
 	// Se tolti i commenti, in giallo i centri di massa dei contorni. In rosso il centroide complessivo.
-	int centroidX, centroidY;
 	vector<int> cmContoursX, cmContoursY;
+	int centroidX, centroidY;
 	if(contours.size() > 0) {
 		for ( size_t i=0; i<contours.size(); ++i ){
 			Moments mo = moments(contours[i], true);
@@ -189,20 +189,21 @@ bool FrameAnalyzer::processFrame() {
 		rectangle(frameDrawn, boundingRect(inBoundContours[largestContourIndex]), BLUE, 3);
 
 
-		// Calcola la posizione del centroide
-		// Il centro del contorno di area maggiore pesa N volte più degli altri nella media
-		// (Per capire il codice vedere il terzo parametro della funzione di accumulate)
-		uint32_t largestContourWeight = 6;
-		/*centroidX = accumulate(cmContoursX.begin(), cmContoursX.end(), (largestContourWeight-1)*cmContoursX[largestContourIndex])
-			/ (contours.size()+(largestContourWeight-1));
-		centroidY = accumulate(cmContoursY.begin(), cmContoursY.end(), (largestContourWeight-1)*cmContoursY[largestContourIndex])
-			/ (contours.size()+(largestContourWeight-1));*/
-		centroidX = accumulate(cmContoursX.begin(), cmContoursX.end(), 0);
-		centroidX = centroidX / cmContoursX.size();
-		centroidY = accumulate(cmContoursY.begin(), cmContoursY.end(), 0);
-		centroidY = centroidX / cmContoursY.size();
-		// [DEBUG] Visualizza il centroide (in rosso)
+		// CALCOLA LA POSIZIONE DEL CENTROIDE
+		// Le coordinate di ogni centro di massa sono pesate con l'area del rispettivo rettangolo
+		double totAreas = 0.0;
+		centroidX = 0; centroidY = 0;
+		for_each(inBoundContours.begin(), inBoundContours.end(),
+			[&totAreas] (vector<Point> inBoundContour) {totAreas += contourArea(inBoundContour);});
+		for(size_t i=0; i<cmContoursX.size(); ++i)
+			centroidX += cmContoursX[i] * contourArea(inBoundContours[i]);
+		centroidX /= totAreas;
+		for(size_t i=0; i<cmContoursY.size(); ++i)
+			centroidY += cmContoursY[i] * contourArea(inBoundContours[i]);
+		centroidY /= totAreas;
 		circle(frameDrawn, Point2d(centroidX, centroidY), 7, RED, 3);
+		
+		
 
 		// Dimensioni della ROI (questa parte si può collassare nella successiva secondo me)
 		leftX = centroidX - 125;

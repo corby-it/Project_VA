@@ -165,7 +165,7 @@ bool FrameAnalyzer::processFrame() {
 			Moments mo = moments(contours[i], true);
 			Point2d result = Point2d(mo.m10/mo.m00 , mo.m01/mo.m00);
 			// Controlla che il centro di massa del contorno sia nel range dell'immagine
-			if( IsInBounds(int(result.x), 0, STD_SIZE.width) && IsInBounds(int(result.y), 0, STD_SIZE.height)){
+			if( IsInBounds(int(result.x), 0, STD_SIZE.width) && IsInBounds(int(result.y), 80, (STD_SIZE.height))){
 				cmContoursX.push_back(result.x);
 				cmContoursY.push_back(result.y);
 				inBoundContours.push_back(contours[i]);
@@ -227,7 +227,7 @@ bool FrameAnalyzer::processFrame() {
 
 	// HOG PEOPLE DETECTION ------------------------------------------------------------------------
 	// people detection solo sui frame pari
-	if( ((int)capture.get(CV_CAP_PROP_POS_FRAMES)) % 4 == 0){
+	if( ((int)capture.get(CV_CAP_PROP_POS_FRAMES)) % 2 == 0){
 
 		vector<Rect> found, found_filtered;
 		double t = (double)getTickCount();

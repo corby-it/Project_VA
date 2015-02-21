@@ -18,7 +18,7 @@ using namespace std;
 using namespace cv;
 
 FrameAnalyzer::FrameAnalyzer(char* videoFilename, int mog)
-	: MOG_LEARNING_RATE(0.05f), STD_SIZE(Size(640,480)), RED(Scalar(0,0,255)), GREEN(Scalar(0,255,0)), BLUE(Scalar(255,0,0)),
+	: MOG_LEARNING_RATE(0.03), STD_SIZE(Size(640,480)), RED(Scalar(0,0,255)), GREEN(Scalar(0,255,0)), BLUE(Scalar(255,0,0)),
 	filename(videoFilename), mogType(mog) {
 
 		// inizializzazione variabili
@@ -68,6 +68,8 @@ FrameAnalyzer::FrameAnalyzer(char* videoFilename, int mog)
 			// leggo il primo frame dal file di background e lo metto in frameBg (resizato)
 			bgCapture.read(frameBg);
 			resize(frameBg, frameBg, STD_SIZE);
+			//Inizializzo frame di background
+			frameInit = frameBg.clone();
 		}
 
 		// crea l'oggetto capture
@@ -128,33 +130,22 @@ bool FrameAnalyzer::processFrame() {
 	double s = (double)getTickCount();
 
 	if(initial){
-		resize(frameInit, frameInit, STD_SIZE);
 		pMOG->operator()(frameInit, fgMaskMOG, MOG_LEARNING_RATE);
 		initial = false;
 	}
 	else
 		pMOG->operator()(frame, fgMaskMOG, MOG_LEARNING_RATE);
 
-	//Mat tmpDiff;
-	//Mat1b tmpDiffGray;
-
-	//// sottraggo il BG al frame corrente
-	//absdiff(frame, frameBg, tmpDiff);
-	////imshow("tmpDiff", tmpDiff);
-
-	//// converto l'immagine differenza in scala di grigi
-	//cvtColor(tmpDiff, tmpDiffGray, CV_RGB2GRAY);
-	////imshow("tmpDiffGray", tmpDiffGray);
-
-	//// soglia di otsu su tmpDiffGray
-	//threshold(tmpDiffGray, fgMaskMOG, 128, 255, CV_THRESH_OTSU);
-
 	s = (double)getTickCount() - s;
 	avgBsTime += s*1000./cv::getTickFrequency();
 
 	// FILTERING e MORFOLOGIA SU fgMaskMOG per ottenere una silhouette migliore 
-	medianBlur(fgMaskMOG, fgMaskMOG, 15);
-	dilate(fgMaskMOG, fgMaskMOG, Mat(), Point(-1, -1), 2, 1, 1);
+	//dilate(fgMaskMOG, fgMaskMOG, Mat(), Point(-1, -1), 2, 1, 1);
+	// Applica chiusura morfologica per migliorare il risultato della sogliatura
+	medianBlur(fgMaskMOG, fgMaskMOG, 5);
+	/*int morph_size = 3;
+	Mat element = getStructuringElement( MORPH_CROSS, Size( 2*morph_size + 1, 2*morph_size+1 ), Point( morph_size, morph_size ) );
+	morphologyEx( fgMaskMOG, fgMaskMOG, MORPH_CLOSE, element );*/
 
 	// disegna una bounding box BLU attorno alle zone di foreground
 	std::vector<std::vector<cv::Point> > contours;
@@ -168,8 +159,8 @@ bool FrameAnalyzer::processFrame() {
 	// Calcola poi il centroide della nuvola di punti per stabilire il punto centrale del movimento
 	// Se tolti i commenti, in giallo i centri di massa dei contorni. In rosso il centroide complessivo.
 	int centroidX, centroidY;
+	vector<int> cmContoursX, cmContoursY;
 	if(contours.size() > 0) {
-		vector<int> cmContoursX, cmContoursY;
 		for ( size_t i=0; i<contours.size(); ++i ){
 			Moments mo = moments(contours[i], true);
 			Point2d result = Point2d(mo.m10/mo.m00 , mo.m01/mo.m00);
@@ -183,7 +174,7 @@ bool FrameAnalyzer::processFrame() {
 				circle(frameDrawn, result, 3, Scalar(0,255,255), 3);
 			}
 		}
-
+		cout << "ALL CONTOURS: " << contours.size() << "\tINBOUND: " << inBoundContours.size() << endl;
 
 		// Trova il contorno di area maggiore per poter dare un maggior peso alla sua posizione
 		int largestContourIndex = -1;
@@ -201,11 +192,15 @@ bool FrameAnalyzer::processFrame() {
 		// Calcola la posizione del centroide
 		// Il centro del contorno di area maggiore pesa N volte più degli altri nella media
 		// (Per capire il codice vedere il terzo parametro della funzione di accumulate)
-		uint32_t largestContourWeight = 3;
-		centroidX = accumulate(cmContoursX.begin(), cmContoursX.end(), (largestContourWeight-1)*cmContoursX[largestContourIndex])
+		uint32_t largestContourWeight = 6;
+		/*centroidX = accumulate(cmContoursX.begin(), cmContoursX.end(), (largestContourWeight-1)*cmContoursX[largestContourIndex])
 			/ (contours.size()+(largestContourWeight-1));
 		centroidY = accumulate(cmContoursY.begin(), cmContoursY.end(), (largestContourWeight-1)*cmContoursY[largestContourIndex])
-			/ (contours.size()+(largestContourWeight-1));
+			/ (contours.size()+(largestContourWeight-1));*/
+		centroidX = accumulate(cmContoursX.begin(), cmContoursX.end(), 0);
+		centroidX = centroidX / cmContoursX.size();
+		centroidY = accumulate(cmContoursY.begin(), cmContoursY.end(), 0);
+		centroidY = centroidX / cmContoursY.size();
 		// [DEBUG] Visualizza il centroide (in rosso)
 		circle(frameDrawn, Point2d(centroidX, centroidY), 7, RED, 3);
 
@@ -223,29 +218,6 @@ bool FrameAnalyzer::processFrame() {
 			frameResized = Mat3b(STD_SIZE.height, 250);
 			frameResized = frame(newRect);
 
-			//Mat3b frameBgResized(STD_SIZE.height, 250); 
-			//frameBgResized = frameBg(newRect);
-
-			//Mat tmpDiff;
-			//Mat1b tmpDiffGray;
-
-			//// sottraggo il BG al frameresized corrente
-			//absdiff(frameResized, frameBgResized, tmpDiff);
-			////imshow("tmpDiff", tmpDiff);
-
-			//// converto l'immagine differenza in scala di grigi
-			//cvtColor(tmpDiff, tmpDiffGray, CV_RGB2GRAY);
-			//imshow("tmpDiffGray", tmpDiffGray);
-
-			//// soglia di otsu su tmpDiffGray
-			//threshold(tmpDiffGray, tmpDiffGray, 128, 255, CV_THRESH_OTSU);
-
-			///* riscrivo fgMaskMOG tutta nera e ci incollo sopra la bg subtraction
-			//fatta solo su frame resized */
-			//fgMaskMOG.setTo(Scalar(0,0,0));
-			//tmpDiffGray.copyTo(fgMaskMOG(newRect));
-			//dilate(fgMaskMOG, fgMaskMOG, Mat(), Point(-1, -1), 2, 1, 1);
-			//erode(fgMaskMOG, fgMaskMOG, Mat(), Point(-1, -1), 2, 1, 1);
 
 		}
 	}
@@ -347,14 +319,13 @@ bool FrameAnalyzer::processFrame() {
 		}
 	}
 
+
 	//show the current frame and the fg masks
 	imshow("Frame", frame);
 	imshow("frameResized", frameResized);
 	imshow("FG Mask MOG - Silhouette", fgMaskMOG);
 	imshow("Background Subtraction and People Detector", frameDrawn);
 
-	//get the input from the keyboard
-	keyboard = waitKey(1);
 
 	return true;
 }
@@ -465,9 +436,6 @@ string FrameAnalyzer::getBgName2(char* filename){
 	}
 	Mat3b frame;
 	video.read(frame);
-
-	//Inizializzo frame di background
-	frameInit = frame.clone();
 
 	//Cerco a quale background assomiglia di più
 	int min = INT_MAX;

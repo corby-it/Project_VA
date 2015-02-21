@@ -223,29 +223,29 @@ bool FrameAnalyzer::processFrame() {
 			frameResized = Mat3b(STD_SIZE.height, 250);
 			frameResized = frame(newRect);
 
-			Mat3b frameBgResized(STD_SIZE.height, 250); 
-			frameBgResized = frameBg(newRect);
+			//Mat3b frameBgResized(STD_SIZE.height, 250); 
+			//frameBgResized = frameBg(newRect);
 
-			Mat tmpDiff;
-			Mat1b tmpDiffGray;
+			//Mat tmpDiff;
+			//Mat1b tmpDiffGray;
 
-			// sottraggo il BG al frameresized corrente
-			absdiff(frameResized, frameBgResized, tmpDiff);
-			//imshow("tmpDiff", tmpDiff);
+			//// sottraggo il BG al frameresized corrente
+			//absdiff(frameResized, frameBgResized, tmpDiff);
+			////imshow("tmpDiff", tmpDiff);
 
-			// converto l'immagine differenza in scala di grigi
-			cvtColor(tmpDiff, tmpDiffGray, CV_RGB2GRAY);
-			imshow("tmpDiffGray", tmpDiffGray);
+			//// converto l'immagine differenza in scala di grigi
+			//cvtColor(tmpDiff, tmpDiffGray, CV_RGB2GRAY);
+			//imshow("tmpDiffGray", tmpDiffGray);
 
-			// soglia di otsu su tmpDiffGray
-			threshold(tmpDiffGray, tmpDiffGray, 128, 255, CV_THRESH_OTSU);
+			//// soglia di otsu su tmpDiffGray
+			//threshold(tmpDiffGray, tmpDiffGray, 128, 255, CV_THRESH_OTSU);
 
-			/* riscrivo fgMaskMOG tutta nera e ci incollo sopra la bg subtraction
-			fatta solo su frame resized */
-			fgMaskMOG.setTo(Scalar(0,0,0));
-			tmpDiffGray.copyTo(fgMaskMOG(newRect));
-			dilate(fgMaskMOG, fgMaskMOG, Mat(), Point(-1, -1), 2, 1, 1);
-			erode(fgMaskMOG, fgMaskMOG, Mat(), Point(-1, -1), 2, 1, 1);
+			///* riscrivo fgMaskMOG tutta nera e ci incollo sopra la bg subtraction
+			//fatta solo su frame resized */
+			//fgMaskMOG.setTo(Scalar(0,0,0));
+			//tmpDiffGray.copyTo(fgMaskMOG(newRect));
+			//dilate(fgMaskMOG, fgMaskMOG, Mat(), Point(-1, -1), 2, 1, 1);
+			//erode(fgMaskMOG, fgMaskMOG, Mat(), Point(-1, -1), 2, 1, 1);
 
 		}
 	}
@@ -336,7 +336,7 @@ bool FrameAnalyzer::processFrame() {
 	int numberBins = 10;
 	vector<double> featureVector(numberBins, 0);
 
-	bool createThe2HistogramImages = true;
+	bool createThe2HistogramImages = false;
 	vector<Mat> histogramImages(2);
 
 	if(closestRect.area()>0){

@@ -17,9 +17,9 @@
 using namespace std;
 using namespace cv;
 
-FrameAnalyzer::FrameAnalyzer(char* videoFilename, int mog)
+FrameAnalyzer::FrameAnalyzer(char* videoFilename, std::string C, int mog)
 	: MOG_LEARNING_RATE(0.05), STD_SIZE(Size(640,480)), RED(Scalar(0,0,255)), GREEN(Scalar(0,255,0)), BLUE(Scalar(255,0,0)),
-	filename(videoFilename), mogType(mog) {
+	filename(videoFilename), mogType(mog), category(C){
 
 		// inizializzazione variabili
 		predictionVect = Point2d(0, 0);
@@ -86,14 +86,14 @@ FrameAnalyzer::FrameAnalyzer(char* videoFilename, int mog)
 
 int FrameAnalyzer::getFrameCount(){
 	if(capture.isOpened()){
-		return capture.get(CV_CAP_PROP_FRAME_COUNT);
+		return (int)capture.get(CV_CAP_PROP_FRAME_COUNT);
 	}
 	else return -1;
 }
 
 int FrameAnalyzer::getCurrentFramePos(){
 	if(capture.isOpened()){
-		return capture.get(CV_CAP_PROP_POS_FRAMES);
+		return (int)capture.get(CV_CAP_PROP_POS_FRAMES);
 	}
 	else return -1;
 }
@@ -181,7 +181,7 @@ bool FrameAnalyzer::processFrame() {
 		// Trova il contorno di area maggiore per poter dare un maggior peso alla sua posizione
 		int largestContourIndex = -1;
 		int largestArea = -1;
-		for (int i=0; i<inBoundContours.size(); ++i) {
+		for (size_t i=0; i<inBoundContours.size(); ++i) {
 			if(contourArea(inBoundContours[i]) > largestArea) {
 				largestArea = contourArea(inBoundContours[i]);
 				largestContourIndex = i;
@@ -318,7 +318,7 @@ bool FrameAnalyzer::processFrame() {
 	if(closestRect.area()>0){
 		computeFeatureVector ( fgMaskMOG, closestRect, numberBins, featureVector, histogramImages, createThe2HistogramImages );
 		if(createThe2HistogramImages) {
-			for(int i=0; i<histogramImages.size(); ++i)
+			for(size_t i=0; i<histogramImages.size(); ++i)
 				imshow("Histogram "+to_string(i+1), histogramImages[i]);
 		}
 	}
@@ -446,7 +446,7 @@ string FrameAnalyzer::getBgName2(char* filename){
 	string best; 
 
 	//Per ogni video di background
-	for(int i=0; i<name_bg.size(); ++i){
+	for(size_t i=0; i<name_bg.size(); ++i){
 
 		//Apro il video di background
 		string prefix = "backgrounds/";

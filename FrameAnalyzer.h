@@ -12,6 +12,7 @@
 #include <numeric>
 #include <cstdint>
 #include <cstring>
+#include <string>
 
 template <typename T>  bool IsInBounds(const T& value, const T& low, const T& high) {
 	return !(value < low) && !(high < value);
@@ -33,7 +34,7 @@ private:
 	const cv::Scalar BLUE;
 
 	// ------------------ VARIABILI -------------------------------
-	char* filename;
+	
 	std::string bgName;
 
 	int mogType;
@@ -77,13 +78,19 @@ public:
 	float avgBsTime;
 	float avgPdTime;
 
+	char* filename;
+
+	// Categoria del video (BEND, WALK, SIDE ecc) - presa dal file dataset.txt
+	std::string category;
+
 	// costruttore vuoto
 	FrameAnalyzer();
 
 	// costruttore con parametri, il primo è il nome del file da aprire,
-	// il secondo è il tipo di background suppression (0=MOG, 1=MOG2),
-	// di default sono entrambi a zero, cioè, lettura da webcam e MOG.
-	FrameAnalyzer(char* filename=0, int mog=0);
+	// il secondo parametro è la categoria dell'azione (BEND, WALK, RUN ecc) presa dal file dataset.txt
+	// il terzo è il tipo di background suppression (0=MOG, 1=MOG2),
+	// di default sono entrambi a zero cioè, lettura da webcam e MOG.
+	FrameAnalyzer(char* filename=0, std::string C="NULL", int mog=0);
 
 	// Processa un singolo frame, restituisce true se è andato tutto bene, false se non è riuscita
 	// a leggere un frame dal videoCapture, cioè se il video è finito

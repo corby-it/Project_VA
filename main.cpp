@@ -12,6 +12,9 @@
 #include <sstream>
 #include <numeric>
 #include <cstdint>
+#include <string>
+#include <vector>
+#include <fstream>
 // FrameAnalyzer
 #include "FrameAnalyzer.h"
 
@@ -20,7 +23,8 @@ using namespace std;
 
 // Dichiarazione delle funzioni
 void help();
-void videoProcessing(char* filename);
+void videoProcessing(char* filename, string category);
+vector<string> parseDatasetFile(string datasetFileName);
 
 // ------------------ MAIN -------------------------------
 int main(int argc, char* argv[])
@@ -36,11 +40,21 @@ int main(int argc, char* argv[])
 		return EXIT_FAILURE;
 	}
 
-	if(strcmp(argv[1], "-vid") == 0) {
-		//input data coming from a video
+	bool processALL = true;
+	if(processALL) {
+		vector<string> datasetLines = parseDatasetFile("dataset.txt");
+		for(size_t i=0; i<datasetLines.size(); ++i)
+		{
+			string category = datasetLines[i].substr(0, datasetLines[i].find("|"));
+			string filePath = datasetLines[i].substr((datasetLines[i].find("|")+1), datasetLines[i].length());
+			videoProcessing(&filePath[0u], category);
+		}
+	}
 
+
+	if(strcmp(argv[1], "-vid") == 0) {
 		// inizia il processing del video
-		videoProcessing(argv[2]);
+		videoProcessing(argv[2], "NULL");
 
 	}
 	else {
@@ -59,12 +73,12 @@ int main(int argc, char* argv[])
 	return EXIT_SUCCESS;
 }
 
-void videoProcessing(char* filename){
+void videoProcessing(char* filename, string category){
 
 	float fps = 0;
 
 	// inizializzo l'oggetto che analizzerà il video
-	FrameAnalyzer frameAnalyzer(filename);
+	FrameAnalyzer frameAnalyzer(filename, category);
 
 	// stampo info sul video
 	cout << "Analisi Video:" << endl;
@@ -77,7 +91,7 @@ void videoProcessing(char* filename){
 
 		// quando arriva alla fine esco comunque dal while
 		if(!frameAnalyzer.processFrame()) break;
-		waitKey(0);
+		waitKey(1);
 	}
 	t = (double)getTickCount() - t; 
 	fps += t*1000./cv::getTickFrequency();
@@ -90,6 +104,20 @@ void videoProcessing(char* filename){
 	// faccio il release del videoCapture per ultima cosa altrimenti le proprietà (tipo il frameCount) che vado a leggere sono tutte sbagliate.
 	frameAnalyzer.release();
 
+}
+
+
+vector<string> parseDatasetFile(string datasetFileName)
+{
+	string line;
+	vector<string> datasetLines;
+
+	ifstream inFile(datasetFileName);
+
+	while (getline(inFile, line))
+		datasetLines.push_back(line);
+
+	return datasetLines;
 }
 
 void help()

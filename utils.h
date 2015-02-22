@@ -57,6 +57,18 @@ void sumToOne (std::vector<double>& histo) {
 }
 
 
+/*---------------------------------------------------------------------------------------------------------------------
+	La funzione roundToTen arrotonda un numero alla decina successiva o precedente a seconda che l'unità sia maggiore
+	o meno di cinque. Esempi: 143-> 140, 79->80 ecc.
+	Serve a creare un istogramma di dimensione multipla di 10, in modo che la riduzione in 10 bin lavori bene.
+---------------------------------------------------------------------------------------------------------------------*/
+int roundToTen (int numberToRound) {
+	int r = numberToRound % 10;
+	if ( r < 5)
+		return (numberToRound - r);
+	else
+		return (numberToRound + (10 - r));
+}
 
 
 /*---------------------------------------------------------------------------------------------------------------------
@@ -79,17 +91,19 @@ void computeFeatureVector ( cv::Mat &frame, cv::Rect peopleRect, int bins, std::
 	//	scorrendo la silhouette per fette orizzontali.
 	//	Per calcolare THETA mi muovo invece da peopleRect.x a (peopleRect.x+peopleRect.width)
 	//	scorrendo la silhouette per fette verticali.
-
-	std::vector<double> hist_pi		= std::vector<double>(peopleRect.height);
-	std::vector<double> hist_theta	= std::vector<double>(peopleRect.width);
+	
+	int hist_pi_size = roundToTen(peopleRect.height);
+	int hist_theta_size = roundToTen(peopleRect.width);
+	std::vector<double> hist_pi		= std::vector<double>(hist_pi_size);
+	std::vector<double> hist_theta	= std::vector<double>(hist_theta_size);
 
 	int yOffset = peopleRect.y;
 	int xOffset = peopleRect.x;
 
-	for (int i = yOffset; i<(yOffset+peopleRect.height); ++i)
+	for (int i = yOffset; i<(yOffset+hist_pi_size); ++i)
 		hist_pi[i-yOffset] = countNonZero(frame.row(i));
 	
-	for (int i = xOffset; i<(xOffset+peopleRect.width); ++i) 
+	for (int i = xOffset; i<(xOffset+hist_theta_size); ++i) 
 		hist_theta[i-xOffset] = countNonZero(frame.col(i));
 
 	if(createHistImages){

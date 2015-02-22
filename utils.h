@@ -2,6 +2,8 @@
 #include <iostream>
 #include <algorithm>
 #include <numeric>	//accumulate
+#include <string>
+#include <fstream>
 // OPENCV
 #include <opencv2/opencv.hpp>
 
@@ -53,7 +55,7 @@ void quantize(std::vector<double> &hist, double old_dim, double new_dim) {
 ---------------------------------------------------------------------------------------------------------------------*/
 void sumToOne (std::vector<double>& histo) {
 	double total = std::accumulate(histo.begin(), histo.end(), 0.0);
-	std::for_each(histo.begin(), histo.end(), [&total] (double &val) {val /= total;});
+	std::for_each(histo.begin(), histo.end(), [&total] (double &val) {if(total!=0) val /= total;});
 }
 
 
@@ -97,8 +99,8 @@ void computeFeatureVector ( cv::Mat &frame, cv::Rect peopleRect, int bins, std::
 	std::vector<double> hist_pi		= std::vector<double>(hist_pi_size);
 	std::vector<double> hist_theta	= std::vector<double>(hist_theta_size);
 
-	int yOffset = peopleRect.y;
-	int xOffset = peopleRect.x;
+	int yOffset = peopleRect.y > 0 ? peopleRect.y : 0;
+	int xOffset = peopleRect.x > 0 ? peopleRect.x : 0;
 
 	for (int i = yOffset; i<(yOffset+hist_pi_size); ++i)
 		hist_pi[i-yOffset] = countNonZero(frame.row(i));
@@ -128,9 +130,71 @@ void computeFeatureVector ( cv::Mat &frame, cv::Rect peopleRect, int bins, std::
 	featureVector.insert( featureVector.end(), hist_theta.begin(), hist_theta.end() );
 }
 
+/*---------------------------------------------------------------------------------------------------------------------
+	La funzione computeFeatureVector serve a calcolare il vettore di feature di un frame.
+	IN QUESTO CASO SI CONSIDERA L'INTERO FRAME, NON SOLO IL RETTANGOLO INDIVIDUATO DAL PEOPLE DETECTOR
 
+	INPUT:	Mat &frame:						il frame di cui calcolare il feature vector
+			Rect peopleRect:				il rettangolo in cui il PD ha individuato la persona
+			int bins:						numero di bin del feature vector (pare vezzani usasse 10 bin)
+			vector<double> featureVector:	il feature vector da riempire
+			vector<Mat> &histogramImages:	vettore di due elementi che è riempito con le immagini dei due istogrammi
+			bool createHistImages:			flag che indica se devono o meno essere create le immagini dei due istogrammi
 
+	OUTPUT: void							(è tutto passato per reference, quindi sono modificati i parametri)
 
+---------------------------------------------------------------------------------------------------------------------*/
+void computeFeatureVector2 ( cv::Mat &frame, int bins, std::vector<double> &featureVector,
+						   std::vector<cv::Mat> &histogramImages, bool createHistImages) {
+
+	//	Per calcolare PI mi muovo da peopleRect.y a (peopleRect.y+peopleRect.height)
+	//	scorrendo la silhouette per fette orizzontali.
+	//	Per calcolare THETA mi muovo invece da peopleRect.x a (peopleRect.x+peopleRect.width)
+	//	scorrendo la silhouette per fette verticali.
+	
+	int hist_pi_size = 480;
+	int hist_theta_size = 640;
+	std::vector<double> hist_pi		= std::vector<double>(hist_pi_size);
+	std::vector<double> hist_theta	= std::vector<double>(hist_theta_size);
+
+	for (int i = 0; i<hist_pi_size; ++i)
+		hist_pi[i] = countNonZero(frame.row(i));
+	
+	for (int i = 0; i<hist_theta_size; ++i) 
+		hist_theta[i] = countNonZero(frame.col(i));
+
+	if(createHistImages){
+		// Salva in un vettore le visualizzazioni grafiche dei due istogrammi
+		// [Le istruzioni di transpose e flip ruotano il primo istogramma di 90° in senso orario]
+		histogramImages[0] = drawHist(hist_pi, cv::Size(640,480));
+		histogramImages[1] = drawHist(hist_theta, cv::Size(640,480));
+		/*transpose(histogramImages[0], histogramImages[0]);  
+		flip(histogramImages[0], histogramImages[0], 1); */
+	}
+
+	// Normalizzazione dei due istogrammi in modo che la somma dei valori sia = 1
+	sumToOne(hist_pi);
+	sumToOne(hist_theta);
+
+	// Quantizzazione dei due istogrammi per ridurre il numero di bin a K/2
+	quantize(hist_pi,	 hist_pi.size(),	bins/2);
+	quantize(hist_theta, hist_theta.size(), bins/2);
+
+	// Crea il feature vector (è passato per reference) concatenando i due istogrammi 'pi' e 'theta'
+	featureVector = hist_pi;	
+	featureVector.insert( featureVector.end(), hist_theta.begin(), hist_theta.end() );
+}
+
+void writeFeatureVectorToFile (std::string outFileName, double currentFrame, std::vector<double> featureVector)
+{
+	std::string folder = "training\\";
+	std::string outPath = folder + outFileName;
+	std::ofstream out(outPath, std::ios::out | std::ios::app);
+	out << outFileName << "|" << currentFrame << "|";
+	std::for_each(featureVector.begin(), featureVector.end(), [&out] (double val) {out << val << "|";});
+	out << std::endl;
+	out.close();
+}
 
 
 

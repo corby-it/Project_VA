@@ -40,7 +40,7 @@ int main(int argc, char* argv[])
 		return EXIT_FAILURE;
 	}
 
-	bool processALL = true;
+	bool processALL = false;
 	if(processALL) {
 		vector<string> datasetLines = parseDatasetFile("dataset.txt");
 		for(size_t i=0; i<datasetLines.size(); ++i)

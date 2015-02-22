@@ -18,7 +18,7 @@ using namespace std;
 using namespace cv;
 
 FrameAnalyzer::FrameAnalyzer(char* videoFilename, std::string C, int mog)
-	: MOG_LEARNING_RATE(0.05), STD_SIZE(Size(640,480)), RED(Scalar(0,0,255)), GREEN(Scalar(0,255,0)), BLUE(Scalar(255,0,0)),
+	: MOG_LEARNING_RATE(0.01), STD_SIZE(Size(640,480)), RED(Scalar(0,0,255)), GREEN(Scalar(0,255,0)), BLUE(Scalar(255,0,0)),
 	filename(videoFilename), mogType(mog), category(C){
 
 		// inizializzazione variabili
@@ -110,7 +110,8 @@ void FrameAnalyzer::release(){
 // Ritorna true se è andato tutto bene, false se non è riuscita a leggere un frame (cioè il video è finito)
 bool FrameAnalyzer::processFrame() {
 
-	cerr << "FRAME GOING TO BE PROCESSED: " << getCurrentFramePos() << " / " << getFrameCount() << "\t";
+	cerr << endl << "FILE: " << filename << endl;
+	cerr << "CURRENT FRAME: " << getCurrentFramePos() << " / " << getFrameCount() << "\t";
 
 	//read the current frame
 	if(!capture.read(frame)) {
@@ -144,11 +145,10 @@ bool FrameAnalyzer::processFrame() {
 	// FILTERING e MORFOLOGIA SU fgMaskMOG per ottenere una silhouette migliore 
 	//dilate(fgMaskMOG, fgMaskMOG, Mat(), Point(-1, -1), 2, 1, 1);
 	// Applica chiusura morfologica per migliorare il risultato della sogliatura
-	medianBlur(fgMaskMOG, fgMaskMOG, 5);
-	//int morph_size = 3;
-	//Mat element = getStructuringElement( MORPH_CROSS, Size( 2*morph_size + 1, 2*morph_size+1 ), Point( morph_size, morph_size ) );
-	//morphologyEx( fgMaskMOG, fgMaskMOG, MORPH_CLOSE, element );
-
+	int morph_size = 3;
+	Mat element = getStructuringElement( MORPH_CROSS, Size( 2*morph_size + 1, 2*morph_size+1 ), Point( morph_size, morph_size ) );
+	morphologyEx( fgMaskMOG, fgMaskMOG, MORPH_CLOSE, element );
+	/*medianBlur(fgMaskMOG, fgMaskMOG, 3);*/
 	// disegna una bounding box BLU attorno alle zone di foreground
 	std::vector<std::vector<cv::Point> > contours;
 	std::vector<std::vector<cv::Point> > inBoundContours;
@@ -176,7 +176,7 @@ bool FrameAnalyzer::processFrame() {
 				circle(frameDrawn, result, 3, Scalar(0,255,255), 3);
 			}
 		}
-		cout << "ALL CONTOURS: " << contours.size() << "\tINBOUND: " << inBoundContours.size() << endl;
+		cout << "ALL CONTOURS: " << contours.size() << " INBOUND: " << inBoundContours.size() << endl;
 
 		// Trova il contorno di area maggiore per poter dare un maggior peso alla sua posizione
 		int largestContourIndex = -1;
@@ -230,14 +230,14 @@ bool FrameAnalyzer::processFrame() {
 
 	// HOG PEOPLE DETECTION ------------------------------------------------------------------------
 	// people detection solo sui frame pari
-	if( ((int)capture.get(CV_CAP_PROP_POS_FRAMES)) % 2 == 0){
+	if( ((int)capture.get(CV_CAP_PROP_POS_FRAMES)) % 1 == 0){
 
 		vector<Rect> found, found_filtered;
 		double t = (double)getTickCount();
 		// run the detector with default parameters. to get a higher hit-rate
 		// (and more false alarms, respectively), decrease the hitThreshold and
 		// groupThreshold (set groupThreshold to 0 to turn off the grouping completely).
-		hog.detectMultiScale(frameResized, found, 0, Size(8,8), Size(0,0), 1.05, 2);
+		hog.detectMultiScale(frameResized, found, 0, Size(8,8), Size(0,0), 1.05, 1);
 		t = (double)getTickCount() - t; 
 		//cout << "detection time = " << t*1000./cv::getTickFrequency() << " - found objects: " << found.size() << endl;
 		avgPdTime += t*1000./cv::getTickFrequency();
@@ -251,7 +251,7 @@ bool FrameAnalyzer::processFrame() {
 			if( j == found.size() )
 				found_filtered.push_back(r);
 		}
-
+		cout << "FOUND: " << found.size() << "FOUND FILTERED " << found_filtered.size() << endl;
 		// se trova più di una persona scorre tutti i risulati e tiene il rettangolo il cui centro
 		// è più vicino al centroide di movimento (quello che più probabilmente contiene la persona reale),
 		// in questo modo si elimina la possibilità di avere due persone detected in scena.
@@ -312,11 +312,15 @@ bool FrameAnalyzer::processFrame() {
 	int numberBins = 10;
 	vector<double> featureVector(numberBins, 0);
 
-	bool createThe2HistogramImages = false;
+	bool createThe2HistogramImages = true;
 	vector<Mat> histogramImages(2);
-
-	if(closestRect.area()>0){
-		computeFeatureVector ( fgMaskMOG, closestRect, numberBins, featureVector, histogramImages, createThe2HistogramImages );
+	line(frameDrawn, Point2d(42,0), Point2d(42,STD_SIZE.height), RED, 3);
+	if(closestRect.area()>0 ) {
+		computeFeatureVector2(fgMaskMOG, numberBins, featureVector, histogramImages, createThe2HistogramImages);
+		string fName(filename);
+		fName = fName.substr(fName.find_last_of("/\\")+1);
+		writeFeatureVectorToFile(fName, getCurrentFramePos(), featureVector);
+		//computeFeatureVector ( fgMaskMOG, closestRect, numberBins, featureVector, histogramImages, createThe2HistogramImages );
 		if(createThe2HistogramImages) {
 			for(size_t i=0; i<histogramImages.size(); ++i)
 				imshow("Histogram "+to_string(i+1), histogramImages[i]);

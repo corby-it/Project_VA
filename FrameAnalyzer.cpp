@@ -110,6 +110,8 @@ void FrameAnalyzer::release(){
 // Ritorna true se è andato tutto bene, false se non è riuscita a leggere un frame (cioè il video è finito)
 bool FrameAnalyzer::processFrame() {
 
+	cerr << "FRAME GOING TO BE PROCESSED: " << getCurrentFramePos() << " / " << getFrameCount() << "\t";
+
 	//read the current frame
 	if(!capture.read(frame)) {
 		cerr << "Video terminato." << endl;
@@ -143,9 +145,9 @@ bool FrameAnalyzer::processFrame() {
 	//dilate(fgMaskMOG, fgMaskMOG, Mat(), Point(-1, -1), 2, 1, 1);
 	// Applica chiusura morfologica per migliorare il risultato della sogliatura
 	medianBlur(fgMaskMOG, fgMaskMOG, 5);
-	/*int morph_size = 3;
-	Mat element = getStructuringElement( MORPH_CROSS, Size( 2*morph_size + 1, 2*morph_size+1 ), Point( morph_size, morph_size ) );
-	morphologyEx( fgMaskMOG, fgMaskMOG, MORPH_CLOSE, element );*/
+	//int morph_size = 3;
+	//Mat element = getStructuringElement( MORPH_CROSS, Size( 2*morph_size + 1, 2*morph_size+1 ), Point( morph_size, morph_size ) );
+	//morphologyEx( fgMaskMOG, fgMaskMOG, MORPH_CLOSE, element );
 
 	// disegna una bounding box BLU attorno alle zone di foreground
 	std::vector<std::vector<cv::Point> > contours;
@@ -186,7 +188,8 @@ bool FrameAnalyzer::processFrame() {
 			}
 		}
 		// [DEBUG] Disegna il boundingRect del contorno di area maggiore
-		rectangle(frameDrawn, boundingRect(inBoundContours[largestContourIndex]), BLUE, 3);
+		if(largestContourIndex >= 0)
+			rectangle(frameDrawn, boundingRect(inBoundContours[largestContourIndex]), BLUE, 3);
 
 
 		// CALCOLA LA POSIZIONE DEL CENTROIDE
@@ -206,17 +209,17 @@ bool FrameAnalyzer::processFrame() {
 		
 
 		// Dimensioni della ROI (questa parte si può collassare nella successiva secondo me)
-		leftX = centroidX - 125;
+		leftX = centroidX - 130;
 		if(leftX < 0)
 			leftX = 0;
-		rightX = centroidX + 125;
+		rightX = centroidX + 130;
 		if(rightX > STD_SIZE.width)
 			rightX = STD_SIZE.width;
 
 		// Se il centroide è all'interno del frame, ritaglia la ROI
 		if (IsInBounds(centroidX, 0, STD_SIZE.width) && IsInBounds(centroidY, 0, STD_SIZE.height)) {
 			Rect newRect = Rect(leftX, 0, abs(rightX-leftX), STD_SIZE.height);
-			frameResized = Mat3b(STD_SIZE.height, 250);
+			frameResized = Mat3b(STD_SIZE.height, 260);
 			frameResized = frame(newRect);
 
 

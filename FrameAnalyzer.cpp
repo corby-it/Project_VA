@@ -230,7 +230,7 @@ bool FrameAnalyzer::processFrame() {
 
 	// HOG PEOPLE DETECTION ------------------------------------------------------------------------
 	// people detection solo sui frame pari
-	if( ((int)capture.get(CV_CAP_PROP_POS_FRAMES)) % 1 == 0){
+	if( ((int)capture.get(CV_CAP_PROP_POS_FRAMES)) % 1 == 0)	{
 
 		vector<Rect> found, found_filtered;
 		double t = (double)getTickCount();
@@ -309,17 +309,18 @@ bool FrameAnalyzer::processFrame() {
 
 
 	// -------------------- CALCOLO DELL'ISTOGRAMMA--------------------------------
-	int numberBins = 10;
+	int numberBins = 20; // numero di bin del feature vector (sarà costituito concatenando due vettori da 10)
 	vector<double> featureVector(numberBins, 0);
 
-	bool createThe2HistogramImages = true;
+	bool createThe2HistogramImages = false;
 	vector<Mat> histogramImages(2);
 	line(frameDrawn, Point2d(42,0), Point2d(42,STD_SIZE.height), RED, 3);
-	if(closestRect.area()>0 ) {
+	if(true/*closestRect.area()>0 */) {
 		computeFeatureVector2(fgMaskMOG, numberBins, featureVector, histogramImages, createThe2HistogramImages);
 		string fName(filename);
 		fName = fName.substr(fName.find_last_of("/\\")+1);
-		writeFeatureVectorToFile(fName, getCurrentFramePos(), featureVector);
+		fName.replace(fName.find("."),fName.length(), ".txt"); 
+		writeFeatureVectorToFile(category, fName, featureVector);
 		//computeFeatureVector ( fgMaskMOG, closestRect, numberBins, featureVector, histogramImages, createThe2HistogramImages );
 		if(createThe2HistogramImages) {
 			for(size_t i=0; i<histogramImages.size(); ++i)

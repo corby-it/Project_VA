@@ -7,6 +7,8 @@
 // OPENCV
 #include <opencv2/opencv.hpp>
 
+#include <windows.h>
+
 
 
 /*---------------------------------------------------------------------------------------------------------------------
@@ -42,7 +44,6 @@ void quantize(std::vector<double> &hist, double old_dim, double new_dim) {
 		for(int j=0;j<scalef-1;++j) {
 			hist[i] += hist[k++]; 
 		}
-		hist[i] /= scalef;
 	}
 	hist.resize(new_dim);
 }
@@ -185,14 +186,15 @@ void computeFeatureVector2 ( cv::Mat &frame, int bins, std::vector<double> &feat
 	featureVector.insert( featureVector.end(), hist_theta.begin(), hist_theta.end() );
 }
 
-void writeFeatureVectorToFile (std::string outFileName, double currentFrame, std::vector<double> featureVector)
+void writeFeatureVectorToFile (std::string category, std::string outFileName, std::vector<double> featureVector)
 {
-	std::string folder = "training\\";
-	std::string outPath = folder + outFileName;
+	// Memento: se la directory è già esistente, CreateDirectory fallisce silenziosamente
+	bool flag = CreateDirectory("training", NULL);
+	std::string folder = "training\\" + category;
+	std::string outPath = folder + "\\" + outFileName;
+	flag = CreateDirectory(folder.c_str(), NULL);
 	std::ofstream out(outPath, std::ios::out | std::ios::app);
-	out << outFileName << "|" << currentFrame << "|";
-	std::for_each(featureVector.begin(), featureVector.end(), [&out] (double val) {out << val << "|";});
-	out << std::endl;
+	std::for_each(featureVector.begin(), featureVector.end(), [&out] (double val) {out << val << std::endl;});
 	out.close();
 }
 

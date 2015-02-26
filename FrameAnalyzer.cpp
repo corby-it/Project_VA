@@ -205,8 +205,8 @@ bool FrameAnalyzer::processFrame() {
 			centroidY += cmContoursY[i] * contourArea(inBoundContours[i]);
 		centroidY /= totAreas;
 		circle(frameDrawn, Point2d(centroidX, centroidY), 7, RED, 3);
-		
-		
+
+
 
 		// Dimensioni della ROI (questa parte si può collassare nella successiva secondo me)
 		leftX = centroidX - 130;
@@ -251,7 +251,7 @@ bool FrameAnalyzer::processFrame() {
 			if( j == found.size() )
 				found_filtered.push_back(r);
 		}
-		cout << "FOUND: " << found.size() << "FOUND FILTERED " << found_filtered.size() << endl;
+		//cout << "FOUND: " << found.size() << "FOUND FILTERED " << found_filtered.size() << endl;
 		// se trova più di una persona scorre tutti i risulati e tiene il rettangolo il cui centro
 		// è più vicino al centroide di movimento (quello che più probabilmente contiene la persona reale),
 		// in questo modo si elimina la possibilità di avere due persone detected in scena.
@@ -309,6 +309,7 @@ bool FrameAnalyzer::processFrame() {
 
 
 	//BOUNDING BOX SILHOUETTE
+	bool test = true; //da settare: TRUE se si vuole testare, FALSE se si vogliono creare i file di train
 	// Creo un rettangolo che contiene la silhouette del soggetto, su cui sono calcolate le features
 
 	//Trovo sulla mask i pixel di foreground (diversi da 0)
@@ -333,16 +334,87 @@ bool FrameAnalyzer::processFrame() {
 			if(true/*closestRect.area()>0 */) {
 				//fgMaskMOG -> versione vecchia, boundingBox -> versione nuova
 				computeFeatureVector2(boundingBox, numberBins, featureVector, histogramImages, createThe2HistogramImages);
-				string fName(filename);
-				fName = fName.substr(fName.find_last_of("/\\")+1);
-				fName.replace(fName.find("."),fName.length(), ".txt"); 
-				writeFeatureVectorToFile(category, fName, featureVector);
-				//computeFeatureVector ( fgMaskMOG, closestRect, numberBins, featureVector, histogramImages, createThe2HistogramImages );
-				if(createThe2HistogramImages) {
-					for(size_t i=0; i<histogramImages.size(); ++i)
-						imshow("Histogram "+to_string(i+1), histogramImages[i]);
+				if(!test){ //Se non è un test calcolo i file di train
+					string fName(filename);
+					fName = fName.substr(fName.find_last_of("/\\")+1);
+					fName.replace(fName.find("."),fName.length(), ".txt"); 
+					writeFeatureVectorToFile(category, fName, featureVector);
+					//computeFeatureVector ( fgMaskMOG, closestRect, numberBins, featureVector, histogramImages, createThe2HistogramImages );
+					if(createThe2HistogramImages) {
+						for(size_t i=0; i<histogramImages.size(); ++i)
+							imshow("Histogram "+to_string(i+1), histogramImages[i]);
+					}
+				}
+				else{
+
+					//-----------------TESTING----------------------
+					//Fatto solo se c'è una bounding box valida (DA OTTIMIZZARE)
+					string path = "hmm/";
+					DIR* d;
+
+					//Per ottenere likelihood massima
+					double max = DBL_MIN;
+					string best;
+
+					//Accumulo le features frame per frame
+					vfeatures.push_back(featureVector);
+
+					//Apro cartella in cui ci sono gli HMM trainati
+					d = opendir(path.c_str());
+					if(!d)
+						cout << "Errore apertura cartella HMM trainati!" << endl;
+
+					dirent* f;
+					//Per ogni HMM trovato nella cartella
+					while((f = readdir(d))){
+						string tmp;
+						tmp = f->d_name;
+						if(tmp.compare(".") != 0 && tmp.compare("..") != 0){
+
+							//Creo un HMM a caso
+							CHMM_GMM* hmm = new CHMM_GMM(1, 1, 1);
+
+							//Apro l'HMM da file
+							string pre = "hmm/"+tmp;
+							char * nome_hmm = new char [pre.length()+1];
+							strcpy_s(nome_hmm, pre.length()+1, pre.c_str());
+							if(!(hmm->LoadFromFile(nome_hmm))){
+								cout << "Errore caricamento HMM: " << nome_hmm << endl;
+							}
+
+							//Ottengo matrice delle transizioni 
+							Mat_<double> A;
+							A = hmm->m_A; 
+
+							//Valuto l'HMM
+							typedef vector<vector<double>>::iterator iter_vf;
+							const iter_vf ivf_init = vfeatures.begin();
+							const iter_vf ivf_final = vfeatures.end();
+							//Calcolo la logLikelihood
+							//cout << "Calcolo la logLikelihood dell'HMM: " << tmp  << " basandomi su: " << vfeatures.size() << " frame" << endl;
+							double loglk = hmm->LogLikelihood(ivf_init, ivf_final, &A);
+							//cout << tmp << "\t" << loglk << endl;
+
+							//Verifico se è massimo
+							if(loglk>max && loglk==loglk){
+								max = loglk;
+								best = tmp.substr(tmp.find_last_of("_")+1, (tmp.size())-tmp.find_last_of("_"));
+							}
+
+							//Distruggo l'HMM creato, altrimenti da problemi di "bad memory allocation"
+							hmm->~CHMM_GMM();
+
+							//system("pause");
+						}
+					}//fine while
+
+					cout << "CLASSIFICAZIONE: " << best << endl;
+					//system("pause");
 				}
 			}
+
+
+
 		}
 	}
 

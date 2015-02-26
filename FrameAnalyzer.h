@@ -14,6 +14,11 @@
 #include <cstring>
 #include <string>
 
+#include "gmmstd_gmm_tiny.h"
+#include "gmmstd_hmm_GMM.h"
+
+using namespace gmmstd;
+
 template <typename T>  bool IsInBounds(const T& value, const T& low, const T& high) {
 	return !(value < low) && !(high < value);
 }
@@ -65,6 +70,8 @@ private:
 	int leftX;
 	int rightX;
 	int xOffset;
+
+	vector<vector<double>> vfeatures;
 
 	// Inizializzazione utile nel caso non trovi contorni
 	cv::Mat3b frameResized;

@@ -153,8 +153,8 @@ void computeFeatureVector2 ( cv::Mat &frame, int bins, std::vector<double> &feat
 	//	Per calcolare THETA mi muovo invece da peopleRect.x a (peopleRect.x+peopleRect.width)
 	//	scorrendo la silhouette per fette verticali.
 	
-	int hist_pi_size = 480;
-	int hist_theta_size = 640;
+	int hist_pi_size = frame.rows; //prima era 480
+	int hist_theta_size = frame.cols; //prima era 640
 	std::vector<double> hist_pi		= std::vector<double>(hist_pi_size);
 	std::vector<double> hist_theta	= std::vector<double>(hist_theta_size);
 
@@ -167,8 +167,8 @@ void computeFeatureVector2 ( cv::Mat &frame, int bins, std::vector<double> &feat
 	if(createHistImages){
 		// Salva in un vettore le visualizzazioni grafiche dei due istogrammi
 		// [Le istruzioni di transpose e flip ruotano il primo istogramma di 90° in senso orario]
-		histogramImages[0] = drawHist(hist_pi, cv::Size(640,480));
-		histogramImages[1] = drawHist(hist_theta, cv::Size(640,480));
+		histogramImages[0] = drawHist(hist_pi, cv::Size(frame.cols,frame.rows));
+		histogramImages[1] = drawHist(hist_theta, cv::Size(frame.cols,frame.rows));
 		/*transpose(histogramImages[0], histogramImages[0]);  
 		flip(histogramImages[0], histogramImages[0], 1); */
 	}

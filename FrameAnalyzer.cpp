@@ -18,7 +18,7 @@ using namespace std;
 using namespace cv;
 
 FrameAnalyzer::FrameAnalyzer(char* videoFilename, std::string C, int mog)
-	: MOG_LEARNING_RATE(0.01), STD_SIZE(Size(640,480)), RED(Scalar(0,0,255)), GREEN(Scalar(0,255,0)), BLUE(Scalar(255,0,0)),
+	: MOG_LEARNING_RATE(0.06), STD_SIZE(Size(640,480)), RED(Scalar(0,0,255)), GREEN(Scalar(0,255,0)), BLUE(Scalar(255,0,0)),
 	filename(videoFilename), mogType(mog), category(C){
 
 		// inizializzazione variabili
@@ -308,26 +308,43 @@ bool FrameAnalyzer::processFrame() {
 	}
 
 
-	// -------------------- CALCOLO DELL'ISTOGRAMMA--------------------------------
-	int numberBins = 20; // numero di bin del feature vector (sarà costituito concatenando due vettori da 10)
-	vector<double> featureVector(numberBins, 0);
+	//BOUNDING BOX SILHOUETTE
+	// Creo un rettangolo che contiene la silhouette del soggetto, su cui sono calcolate le features
 
-	bool createThe2HistogramImages = false;
-	vector<Mat> histogramImages(2);
-	line(frameDrawn, Point2d(42,0), Point2d(42,STD_SIZE.height), RED, 3);
-	if(true/*closestRect.area()>0 */) {
-		computeFeatureVector2(fgMaskMOG, numberBins, featureVector, histogramImages, createThe2HistogramImages);
-		string fName(filename);
-		fName = fName.substr(fName.find_last_of("/\\")+1);
-		fName.replace(fName.find("."),fName.length(), ".txt"); 
-		writeFeatureVectorToFile(category, fName, featureVector);
-		//computeFeatureVector ( fgMaskMOG, closestRect, numberBins, featureVector, histogramImages, createThe2HistogramImages );
-		if(createThe2HistogramImages) {
-			for(size_t i=0; i<histogramImages.size(); ++i)
-				imshow("Histogram "+to_string(i+1), histogramImages[i]);
+	//Trovo sulla mask i pixel di foreground (diversi da 0)
+	Mat nonZeroCoordinates;
+	findNonZero(fgMaskMOG,nonZeroCoordinates);
+
+	//Controllo che ci siano effettivamente almeno un po' di punti di foreground (soglia manuale magari da migliorare)
+	if(nonZeroCoordinates.rows>=4){
+		Rect bb = boundingRect(nonZeroCoordinates);		
+		//Controllo che il bb non abbia preso troppo frame (a causa del background non ancora riconosciuto)
+		if(bb.x != 0 && bb.y != 0){
+			Mat boundingBox = fgMaskMOG(bb).clone();
+			rectangle(frameDrawn,bb,Scalar(255,255,255),1);
+
+			// -------------------- CALCOLO DELL'ISTOGRAMMA--------------------------------
+			int numberBins = 20; // numero di bin del feature vector (sarà costituito concatenando due vettori da 10)
+			vector<double> featureVector(numberBins, 0);
+
+			bool createThe2HistogramImages = false;
+			vector<Mat> histogramImages(2);
+			line(frameDrawn, Point2d(42,0), Point2d(42,STD_SIZE.height), RED, 3);
+			if(true/*closestRect.area()>0 */) {
+				//fgMaskMOG -> versione vecchia, boundingBox -> versione nuova
+				computeFeatureVector2(boundingBox, numberBins, featureVector, histogramImages, createThe2HistogramImages);
+				string fName(filename);
+				fName = fName.substr(fName.find_last_of("/\\")+1);
+				fName.replace(fName.find("."),fName.length(), ".txt"); 
+				writeFeatureVectorToFile(category, fName, featureVector);
+				//computeFeatureVector ( fgMaskMOG, closestRect, numberBins, featureVector, histogramImages, createThe2HistogramImages );
+				if(createThe2HistogramImages) {
+					for(size_t i=0; i<histogramImages.size(); ++i)
+						imshow("Histogram "+to_string(i+1), histogramImages[i]);
+				}
+			}
 		}
 	}
-
 
 	//show the current frame and the fg masks
 	imshow("Frame", frame);

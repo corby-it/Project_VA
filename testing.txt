@@ -1,0 +1,8 @@
+BEND|C:\Users\Guido\Documents\Progetto AR\dataset\daria_bend.avi
+JACK|C:\Users\Guido\Documents\Progetto AR\dataset\daria_jack.avi
+JUMP|C:\Users\Guido\Documents\Progetto AR\dataset\daria_jump.avi
+PJUMP|C:\Users\Guido\Documents\Progetto AR\dataset\daria_pjump.avi
+RUN|C:\Users\Guido\Documents\Progetto AR\dataset\daria_run.avi
+SIDE|C:\Users\Guido\Documents\Progetto AR\dataset\daria_side.avi
+SKIP|C:\Users\Guido\Documents\Progetto AR\dataset\daria_skip.avi
+WALK|C:\Users\Guido\Documents\Progetto AR\dataset\shahar_walk.avi

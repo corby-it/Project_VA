@@ -71,10 +71,13 @@ private:
 	int rightX;
 	int xOffset;
 
-	vector<vector<double>> vfeatures;
-
 	// Inizializzazione utile nel caso non trovi contorni
 	cv::Mat3b frameResized;
+
+	//Per il TESTING
+	vector<vector<double>> vfeatures;
+	vector<CHMM_GMM> vhmm;
+	vector<string> class_action;
 
 	void drawRectOnFrameDrawn( cv::Rect closestRect, cv::Mat frameDrawn, cv::Scalar color, int thickness, int xOffset);
 	std::string getBgName(char* filename);

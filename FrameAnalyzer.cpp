@@ -82,6 +82,38 @@ FrameAnalyzer::FrameAnalyzer(char* videoFilename, std::string C, int mog)
 			exit(EXIT_FAILURE);
 		}
 
+		//Carico gli HMM per il testing
+		cout << "Carico HMM per il testing..." << endl;
+		//Cartella con hmm trainati
+		string path = "hmm/";
+		DIR* d;
+		d = opendir(path.c_str());
+		if(!d)
+			cout << "Errore apertura cartella HMM trainati!" << endl;
+		dirent* f;
+		//Per tutti gli hmm presenti
+		while((f = readdir(d))){
+			string tmp;
+			tmp = f->d_name;
+			//Controllo che sia un nome di un file presente
+			if(tmp.compare(".") != 0 && tmp.compare("..") != 0){
+				CHMM_GMM* hmm = new CHMM_GMM(1, 1, 1);
+				string pre = "hmm/"+tmp;
+				char * nome_hmm = new char [pre.length()+1];
+				strcpy_s(nome_hmm, pre.length()+1, pre.c_str());
+				//Carico hmm e controllo esito
+				if(!(hmm->LoadFromFile(nome_hmm))){
+					cout << "Errore caricamento HMM: " << nome_hmm << endl;
+				}
+				//Inserisco hmm nel vettore
+				vhmm.push_back(*hmm);
+				//Memorizzo il tipo di classe dell'hmm
+				class_action.push_back(tmp.substr(tmp.find_last_of("_")+1, (tmp.size())-tmp.find_last_of("_")));
+				//Distruggo l'hmm per non avere problemi di memory allocation
+				hmm->~CHMM_GMM();
+			}
+		}
+		cout << "Sono stati caricati " << vhmm.size() << " HMM" << endl;
 }
 
 int FrameAnalyzer::getFrameCount(){
@@ -110,8 +142,8 @@ void FrameAnalyzer::release(){
 // Ritorna true se è andato tutto bene, false se non è riuscita a leggere un frame (cioè il video è finito)
 bool FrameAnalyzer::processFrame() {
 
-	cerr << endl << "FILE: " << filename << endl;
-	cerr << "CURRENT FRAME: " << getCurrentFramePos() << " / " << getFrameCount() << "\t";
+	//cerr << endl << "FILE: " << filename << endl;
+	//cerr << "CURRENT FRAME: " << getCurrentFramePos() << " / " << getFrameCount() << "\t";
 
 	//read the current frame
 	if(!capture.read(frame)) {
@@ -176,7 +208,7 @@ bool FrameAnalyzer::processFrame() {
 				circle(frameDrawn, result, 3, Scalar(0,255,255), 3);
 			}
 		}
-		cout << "ALL CONTOURS: " << contours.size() << " INBOUND: " << inBoundContours.size() << endl;
+		//cout << "ALL CONTOURS: " << contours.size() << " INBOUND: " << inBoundContours.size() << endl;
 
 		// Trova il contorno di area maggiore per poter dare un maggior peso alla sua posizione
 		int largestContourIndex = -1;
@@ -230,7 +262,7 @@ bool FrameAnalyzer::processFrame() {
 
 	// HOG PEOPLE DETECTION ------------------------------------------------------------------------
 	// people detection solo sui frame pari
-	if( ((int)capture.get(CV_CAP_PROP_POS_FRAMES)) % 1 == 0)	{
+	if(((int)capture.get(CV_CAP_PROP_POS_FRAMES)) % 4 == 0)	{
 
 		vector<Rect> found, found_filtered;
 		double t = (double)getTickCount();
@@ -331,7 +363,7 @@ bool FrameAnalyzer::processFrame() {
 			bool createThe2HistogramImages = false;
 			vector<Mat> histogramImages(2);
 			line(frameDrawn, Point2d(42,0), Point2d(42,STD_SIZE.height), RED, 3);
-			if(true/*closestRect.area()>0 */) {
+			if(getCurrentFramePos()%2 == 0) {
 				//fgMaskMOG -> versione vecchia, boundingBox -> versione nuova
 				computeFeatureVector2(boundingBox, numberBins, featureVector, histogramImages, createThe2HistogramImages);
 				if(!test){ //Se non è un test calcolo i file di train
@@ -349,66 +381,39 @@ bool FrameAnalyzer::processFrame() {
 
 					//-----------------TESTING----------------------
 					//Fatto solo se c'è una bounding box valida (DA OTTIMIZZARE)
-					string path = "hmm/";
-					DIR* d;
 
 					//Per ottenere likelihood massima
 					double max = DBL_MIN;
-					string best;
+					int best;
 
 					//Accumulo le features frame per frame
 					vfeatures.push_back(featureVector);
 
-					//Apro cartella in cui ci sono gli HMM trainati
-					d = opendir(path.c_str());
-					if(!d)
-						cout << "Errore apertura cartella HMM trainati!" << endl;
-
-					dirent* f;
 					//Per ogni HMM trovato nella cartella
-					while((f = readdir(d))){
-						string tmp;
-						tmp = f->d_name;
-						if(tmp.compare(".") != 0 && tmp.compare("..") != 0){
+					for(int i=0;i<vhmm.size();++i){
 
-							//Creo un HMM a caso
-							CHMM_GMM* hmm = new CHMM_GMM(1, 1, 1);
+						//Ottengo matrice di transizione
+						Mat_<double> A;
+						A = vhmm[i].m_A; 
 
-							//Apro l'HMM da file
-							string pre = "hmm/"+tmp;
-							char * nome_hmm = new char [pre.length()+1];
-							strcpy_s(nome_hmm, pre.length()+1, pre.c_str());
-							if(!(hmm->LoadFromFile(nome_hmm))){
-								cout << "Errore caricamento HMM: " << nome_hmm << endl;
-							}
-
-							//Ottengo matrice delle transizioni 
-							Mat_<double> A;
-							A = hmm->m_A; 
-
-							//Valuto l'HMM
-							typedef vector<vector<double>>::iterator iter_vf;
-							const iter_vf ivf_init = vfeatures.begin();
-							const iter_vf ivf_final = vfeatures.end();
-							//Calcolo la logLikelihood
-							//cout << "Calcolo la logLikelihood dell'HMM: " << tmp  << " basandomi su: " << vfeatures.size() << " frame" << endl;
-							double loglk = hmm->LogLikelihood(ivf_init, ivf_final, &A);
-							//cout << tmp << "\t" << loglk << endl;
-
-							//Verifico se è massimo
-							if(loglk>max && loglk==loglk){
-								max = loglk;
-								best = tmp.substr(tmp.find_last_of("_")+1, (tmp.size())-tmp.find_last_of("_"));
-							}
-
-							//Distruggo l'HMM creato, altrimenti da problemi di "bad memory allocation"
-							hmm->~CHMM_GMM();
-
-							//system("pause");
+						//Valuto l'HMM
+						typedef vector<vector<double>>::iterator iter_vf;
+						const iter_vf ivf_init = vfeatures.begin();
+						const iter_vf ivf_final = vfeatures.end();
+						//Calcolo la logLikelihood
+						//cout << "Calcolo la logLikelihood dell'HMM: " << tmp  << " basandomi su: " << vfeatures.size() << " frame" << endl;
+						//cout << "Calcolo lk con frame " << vfeatures.size() << endl;
+						double loglk = vhmm[i].LogLikelihood(ivf_init, ivf_final, &A);
+						//cout << tmp << "\t" << loglk << endl;
+		
+						//Verifico se è massimo
+						if(loglk>max && loglk==loglk){
+							max = loglk;
+							best = i;
 						}
 					}//fine while
 
-					cout << "CLASSIFICAZIONE: " << best << endl;
+					cout << "CLASSIFICAZIONE: " << class_action[best] << endl;
 					//system("pause");
 				}
 			}

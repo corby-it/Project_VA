@@ -40,9 +40,9 @@ int main(int argc, char* argv[])
 		return EXIT_FAILURE;
 	}
 
-	bool processALL = true;
+	bool processALL = false;
 	if(processALL) {
-		vector<string> datasetLines = parseDatasetFile("dataset.txt");
+		vector<string> datasetLines = parseDatasetFile("testing.txt");
 		for(size_t i=0; i<datasetLines.size(); ++i)
 		{
 			string category = datasetLines[i].substr(0, datasetLines[i].find("|"));

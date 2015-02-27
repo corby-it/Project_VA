@@ -108,7 +108,7 @@ FrameAnalyzer::FrameAnalyzer(char* videoFilename, std::string C, int mog)
 				//Inserisco hmm nel vettore
 				vhmm.push_back(*hmm);
 				//Memorizzo il tipo di classe dell'hmm
-				class_action.push_back(tmp.substr(tmp.find_last_of("_")+1, (tmp.size())-tmp.find_last_of("_")));
+				class_action.push_back(tmp.substr(tmp.find_first_of("_")+1, (tmp.size())-tmp.find_first_of("_")));
 				//Distruggo l'hmm per non avere problemi di memory allocation
 				hmm->~CHMM_GMM();
 			}
@@ -405,15 +405,16 @@ bool FrameAnalyzer::processFrame() {
 						//cout << "Calcolo lk con frame " << vfeatures.size() << endl;
 						double loglk = vhmm[i].LogLikelihood(ivf_init, ivf_final, &A);
 						//cout << tmp << "\t" << loglk << endl;
-		
-						//Verifico se è massimo
-						if(loglk>max && loglk==loglk){
+						string file_name = filename;
+						file_name = file_name.substr(file_name.find_last_of("\\")+1, file_name.length()-file_name.find_last_of("\\")-5);
+						//Verifico se è massimo e se l'hmm non è lo stesso dell'azione
+						if((loglk>max && loglk==loglk) && (class_action[i].compare(file_name) != 0)){
 							max = loglk;
 							best = i;
 						}
 					}//fine while
 
-					cout << "CLASSIFICAZIONE: " << class_action[best] << endl;
+					cout << "CLASSIFICAZIONE: " << class_action[best].substr(class_action[best].find_first_of("_")+1, class_action[best].length()-class_action[best].find_first_of("_")) << endl;
 					//system("pause");
 				}
 			}

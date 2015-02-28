@@ -9,6 +9,7 @@
 #include <sstream>
 #include <numeric>
 #include <cstdint>
+#include <cstdlib>
 
 #include "FrameAnalyzer.h"
 #include "dirent.h"
@@ -116,6 +117,9 @@ FrameAnalyzer::FrameAnalyzer(char* videoFilename, std::string C, int mog)
 			}
 		}
 		cout << "Sono stati caricati " << vhmm.size() << " HMM" << endl;
+
+		// inizializzo il contatore dei test effettuati
+		testCount = 0;
 
 }
 
@@ -374,8 +378,8 @@ bool FrameAnalyzer::processFrame() {
 					double maxLk = DBL_MIN;
 					string maxClass = "";
 
-					if (vHMMTester.size()<windowNum && (getCurrentFramePos()%windowsStep)==0){
-						vHMMTester.push_back(HMMTester(vhmm, class_action));
+					if (vHMMTester.size() < windowNum && (testCount % windowsStep)==0){
+						vHMMTester.push_back(HMMTester(vhmm, class_action, rand()%100));
 					}
 
 					for (size_t i=0; i<vHMMTester.size(); ++i){
@@ -387,12 +391,17 @@ bool FrameAnalyzer::processFrame() {
 							maxClass = c.second;
 						}
 
-						if (vHMMTester[i].countFrame() == windowSize)
+						if (vHMMTester[i].countFrame() == windowSize){
 							vHMMTester.erase(vHMMTester.begin());
+							vHMMTester.push_back(HMMTester(vhmm, class_action, rand()%100));
+						}
+
+						cout << "Classificatore " << i << " - LK: " <<  c.first << "\tClass: " << c.second << "\tID: " << vHMMTester[i]._id << endl;
 					}
 
-					cout << "CLASSIFICAZIONE: " << maxClass << " con likelihood: " << maxLk << endl;
+					cout << "\tCLASSIFICAZIONE: " << maxClass << " con likelihood: " << maxLk << endl << endl;
 
+					testCount++;
 				}
 				
 

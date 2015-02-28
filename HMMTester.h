@@ -14,10 +14,8 @@
 #include <vector>
 #include <utility>
 #include <string>
-//
-//#include "FrameAnalyzer.h"
+
 #include "dirent.h"
-#include "utils.h"
 #include "config.h"
 #include "gmmstd_hmm_GMM.h"
 #include "gmmstd_gmm_tiny.h"
@@ -30,10 +28,12 @@ public:
 	std::vector<std::string> classAction;
 	int best;
 	double loglk;
+	int _id;
 
-	HMMTester(std::vector<gmmstd::CHMM_GMM> vHMM, std::vector<std::string> classAction){
+	HMMTester(std::vector<gmmstd::CHMM_GMM> vHMM, std::vector<std::string> classAction, int id){
 		this->vHMM = vHMM;
 		this->classAction = classAction;
+		_id = id;
 	}
 
 	std::size_t HMMTester::countFrame () {

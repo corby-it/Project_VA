@@ -1,6 +1,6 @@
 #pragma once
 
-const bool processALL = true;
+const bool processALL = false;
 const int waitTimeSpan = 1;
 const double learningRate = 0.06;
 const bool test = true; //da settare: TRUE se si vuole testare, FALSE se si vogliono creare i file di train

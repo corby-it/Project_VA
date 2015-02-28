@@ -366,7 +366,7 @@ bool FrameAnalyzer::processFrame() {
 			vector<Mat> histogramImages(2);
 			if(getCurrentFramePos()%2 == 0) {
 				//fgMaskMOG -> versione vecchia, boundingBox -> versione nuova
-				computeFeatureVector2(boundingBox, numberBins, featureVector, histogramImages, true);
+				computeFeatureVector(boundingBox, numberBins, featureVector, histogramImages, true);
 				if(!test){ //Se non è un test calcolo i file di train
 					string fName(filename);
 					fName = fName.substr(fName.find_last_of("/\\")+1);

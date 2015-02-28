@@ -13,11 +13,9 @@
 #include <cstdint>
 #include <cstring>
 #include <string>
+#include <list>
 
-#include "gmmstd_gmm_tiny.h"
-#include "gmmstd_hmm_GMM.h"
-
-using namespace gmmstd;
+#include "HMMTester.h"
 
 template <typename T>  bool IsInBounds(const T& value, const T& low, const T& high) {
 	return !(value < low) && !(high < value);
@@ -75,13 +73,12 @@ private:
 	cv::Mat3b frameResized;
 
 	//Per il TESTING
-	vector<vector<double>> vfeatures;
-	vector<CHMM_GMM> vhmm;
-	vector<string> class_action;
-
+	std::vector<std::vector<double>> vfeatures;
+	std::vector<gmmstd::CHMM_GMM> vhmm;
+	std::vector<std::string> class_action;
+	std::vector<HMMTester> vHMMTester;
 	void drawRectOnFrameDrawn( cv::Rect closestRect, cv::Mat frameDrawn, cv::Scalar color, int thickness, int xOffset);
 	std::string getBgName(char* filename);
-	std::string getBgName2(char* filename);
 
 public:
 	int keyboard;
@@ -105,6 +102,10 @@ public:
 	// Processa un singolo frame, restituisce true se è andato tutto bene, false se non è riuscita
 	// a leggere un frame dal videoCapture, cioè se il video è finito
 	bool processFrame();
+
+	// Da commentare
+	void FrameAnalyzer::testingHMM(std::vector<double> featureVector);
+
 
 	// ritorna il numero totale di frame, -1 se qualcosa è andato storto (es: video non aperto)
 	int getFrameCount();

@@ -17,6 +17,7 @@
 #include <fstream>
 // FrameAnalyzer
 #include "FrameAnalyzer.h"
+#include "config.h"
 
 using namespace cv;
 using namespace std;
@@ -40,7 +41,7 @@ int main(int argc, char* argv[])
 		return EXIT_FAILURE;
 	}
 
-	bool processALL = true;
+
 	if(processALL) {
 		vector<string> datasetLines = parseDatasetFile("testing.txt");
 		for(size_t i=0; i<datasetLines.size(); ++i)
@@ -50,20 +51,22 @@ int main(int argc, char* argv[])
 			videoProcessing(&filePath[0u], category);
 		}
 	}
+	else{
+		if(strcmp(argv[1], "-vid") == 0) {
+			// inizia il processing del video
+			videoProcessing(argv[2], "NULL");
 
-
-	if(strcmp(argv[1], "-vid") == 0) {
-		// inizia il processing del video
-		videoProcessing(argv[2], "NULL");
-
+		}
+		else {
+			//error in reading input parameters
+			cerr <<"Please, check the input parameters." << endl;
+			cerr <<"Exiting..." << endl;
+			system("pause");
+			return EXIT_FAILURE;
+		}
 	}
-	else {
-		//error in reading input parameters
-		cerr <<"Please, check the input parameters." << endl;
-		cerr <<"Exiting..." << endl;
-		system("pause");
-		return EXIT_FAILURE;
-	}
+
+
 
 	system("pause");
 
@@ -91,7 +94,7 @@ void videoProcessing(char* filename, string category){
 
 		// quando arriva alla fine esco comunque dal while
 		if(!frameAnalyzer.processFrame()) break;
-		waitKey(1);
+		waitKey(waitTimeSpan);
 	}
 	t = (double)getTickCount() - t; 
 	fps += t*1000./cv::getTickFrequency();

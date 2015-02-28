@@ -13,12 +13,14 @@
 #include "FrameAnalyzer.h"
 #include "dirent.h"
 #include "utils.h"
+#include "config.h"
 
 using namespace std;
 using namespace cv;
+using namespace gmmstd;
 
 FrameAnalyzer::FrameAnalyzer(char* videoFilename, std::string C, int mog)
-	: MOG_LEARNING_RATE(0.06), STD_SIZE(Size(640,480)), RED(Scalar(0,0,255)), GREEN(Scalar(0,255,0)), BLUE(Scalar(255,0,0)),
+	: MOG_LEARNING_RATE(learningRate), STD_SIZE(Size(640,480)), RED(Scalar(0,0,255)), GREEN(Scalar(0,255,0)), BLUE(Scalar(255,0,0)),
 	filename(videoFilename), mogType(mog), category(C){
 
 		// inizializzazione variabili
@@ -53,7 +55,7 @@ FrameAnalyzer::FrameAnalyzer(char* videoFilename, std::string C, int mog)
 		hog.setSVMDetector(HOGDescriptor::getDefaultPeopleDetector());
 
 		// inizializzo il background
-		bgName = getBgName2(filename);
+		bgName = getBgName(filename);
 		cout << "Background selezionato: " << bgName << endl;
 
 		VideoCapture bgCapture(bgName);
@@ -114,6 +116,7 @@ FrameAnalyzer::FrameAnalyzer(char* videoFilename, std::string C, int mog)
 			}
 		}
 		cout << "Sono stati caricati " << vhmm.size() << " HMM" << endl;
+
 }
 
 int FrameAnalyzer::getFrameCount(){
@@ -339,11 +342,7 @@ bool FrameAnalyzer::processFrame() {
 		}
 	}
 
-
-	//BOUNDING BOX SILHOUETTE
-	bool test = true; //da settare: TRUE se si vuole testare, FALSE se si vogliono creare i file di train
 	// Creo un rettangolo che contiene la silhouette del soggetto, su cui sono calcolate le features
-
 	//Trovo sulla mask i pixel di foreground (diversi da 0)
 	Mat nonZeroCoordinates;
 	findNonZero(fgMaskMOG,nonZeroCoordinates);
@@ -360,78 +359,47 @@ bool FrameAnalyzer::processFrame() {
 			int numberBins = 20; // numero di bin del feature vector (sarà costituito concatenando due vettori da 10)
 			vector<double> featureVector(numberBins, 0);
 
-			bool createThe2HistogramImages = false;
 			vector<Mat> histogramImages(2);
-			line(frameDrawn, Point2d(42,0), Point2d(42,STD_SIZE.height), RED, 3);
 			if(getCurrentFramePos()%2 == 0) {
 				//fgMaskMOG -> versione vecchia, boundingBox -> versione nuova
-				computeFeatureVector2(boundingBox, numberBins, featureVector, histogramImages, createThe2HistogramImages);
+				computeFeatureVector2(boundingBox, numberBins, featureVector, histogramImages, true);
 				if(!test){ //Se non è un test calcolo i file di train
 					string fName(filename);
 					fName = fName.substr(fName.find_last_of("/\\")+1);
 					fName.replace(fName.find("."),fName.length(), ".txt"); 
 					writeFeatureVectorToFile(category, fName, featureVector);
 					//computeFeatureVector ( fgMaskMOG, closestRect, numberBins, featureVector, histogramImages, createThe2HistogramImages );
-					if(createThe2HistogramImages) {
-						for(size_t i=0; i<histogramImages.size(); ++i)
-							imshow("Histogram "+to_string(i+1), histogramImages[i]);
-					}
 				}
 				else{
+					double maxLk = DBL_MIN;
+					string maxClass = "";
 
-					//-----------------TESTING----------------------
-					//Fatto solo se c'è una bounding box valida (DA OTTIMIZZARE)
+					if (vHMMTester.size()<windowNum && (getCurrentFramePos()%windowsStep)==0){
+						vHMMTester.push_back(HMMTester(vhmm, class_action));
+					}
 
-					//Per ottenere likelihood massima
-					double max = DBL_MIN;
-					double max_other = DBL_MIN;
-					int best;
+					for (size_t i=0; i<vHMMTester.size(); ++i){
+						vHMMTester[i].testingHMM(featureVector);
 
-					//Accumulo le features frame per frame
-					vfeatures.push_back(featureVector);
-
-					//Per ogni HMM trovato nella cartella
-					for(int i=0;i<vhmm.size();++i){
-
-						//Ottengo matrice di transizione
-						Mat_<double> A;
-						A = vhmm[i].m_A; 
-
-						//Valuto l'HMM
-						typedef vector<vector<double>>::iterator iter_vf;
-						const iter_vf ivf_init = vfeatures.begin();
-						const iter_vf ivf_final = vfeatures.end();
-						//Calcolo la logLikelihood
-						//cout << "Calcolo la logLikelihood dell'HMM: " << tmp  << " basandomi su: " << vfeatures.size() << " frame" << endl;
-						//cout << "Calcolo lk con frame " << vfeatures.size() << endl;
-						double loglk = vhmm[i].LogLikelihood(ivf_init, ivf_final, &A);
-						//cout << tmp << "\t" << loglk << endl;
-
-						//Genero alcune stringhe utili
-						string file_name = filename;
-						file_name = file_name.substr(file_name.find_last_of("\\")+1, file_name.length()-file_name.find_last_of("\\")-5);
-						string tipo = class_action[best].substr(class_action[best].find_first_of("_")+1, class_action[best].length()-class_action[best].find_first_of("_"));
-						string tipo_file = file_name.substr(file_name.find_first_of("_")+1, file_name.length()-file_name.find_first_of("_"));
-
-						//Verifico se è massimo e se l'hmm non è lo stesso dell'azione
-						if((loglk>max && loglk==loglk) && (class_action[i].compare(file_name) != 0)){
-							max = loglk;
-							best = i;
+						pair<double,string> c = vHMMTester[i].getClassification();
+						if(c.first > maxLk){
+							maxLk = c.first;
+							maxClass = c.second;
 						}
 
-						//Trovo il valore massimo di un hmm di un altro tipo di azione
-						if((loglk>max_other && loglk==loglk) && (tipo.compare(tipo_file) != 0))
-							max_other = loglk;
+						if (vHMMTester[i].countFrame() == windowSize)
+							vHMMTester.erase(vHMMTester.begin());
+					}
 
-					}//fine while
+					cout << "CLASSIFICAZIONE: " << maxClass << " con likelihood: " << maxLk << endl;
 
-					cout << "CLASSIFICAZIONE: " << class_action[best].substr(class_action[best].find_first_of("_")+1, class_action[best].length()-class_action[best].find_first_of("_"));
-					cout << " SICURO AL: " << (max/max_other)*100 << "%" << endl;
-
-					//system("pause");
 				}
-			}
+				
 
+				// Disegna gli istogrammi
+				for(size_t i=0; i<histogramImages.size(); ++i)
+							imshow("Histogram "+to_string(i+1), histogramImages[i]);
+			}
 
 
 		}
@@ -458,70 +426,6 @@ void FrameAnalyzer::drawRectOnFrameDrawn( Rect closestRect, Mat frameDrawn, cv::
 }
 
 string FrameAnalyzer::getBgName(char* filename){
-
-	stringstream ss;
-	ss << "backgrounds/";
-
-	string strFname(filename);
-	strFname = strFname.substr(strFname.find_first_of("/")+1);
-
-	if(strcmp(strFname.data(), "daria_bend.avi") == 0 || strcmp(strFname.data(), "daria_jack.avi") == 0 ||strcmp(strFname.data(), "daria_wave1.avi") == 0 ||strcmp(strFname.data(), "daria_wave2.avi") == 0){
-		ss << "bg_015.avi";
-		return ss.str();
-	}
-	else if(strcmp(strFname.data(), "denis_bend.avi") == 0 || strcmp(strFname.data(), "daria_jack.avi") == 0 || strcmp(strFname.data(), "denis_pjump.avi") == 0 || strcmp(strFname.data(), "denis_wave1.avi") == 0 || strcmp(strFname.data(), "denis_wave2.avi") == 0 ){
-		ss << "bg_026.avi";
-		return ss.str();
-	}
-	else if(strcmp(strFname.data(), "eli_bend.avi") == 0 || strcmp(strFname.data(), "eli_pjump.avi") == 0 ||strcmp(strFname.data(), "eli_wave1.avi") == 0 ||strcmp(strFname.data(), "eli_wave2.avi") == 0){
-		ss << "bg_062.avi";
-		return ss.str();
-	}
-	else if(strcmp(strFname.data(), "ido_bend.avi") == 0 || strcmp(strFname.data(), "ido_jack.avi") == 0 || strcmp(strFname.data(), "ido_pjump.avi") == 0 || strcmp(strFname.data(), "ido_wave1.avi") == 0 || strcmp(strFname.data(), "ido_wave2.avi") == 0){
-		ss << "bg_062.avi";
-		return ss.str();
-	}
-	else if(strcmp(strFname.data(), "ira_bend.avi") == 0 || strcmp(strFname.data(), "ira_jack.avi") == 0 || strcmp(strFname.data(), "ira_pjump.avi") == 0 || strcmp(strFname.data(), "ira_wave1.avi") == 0 || strcmp(strFname.data(), "ira_wave2.avi") == 0){
-		ss << "bg_007.avi";
-		return ss.str();
-	}
-	else if(strcmp(strFname.data(), "lena_bend.avi") == 0 || strcmp(strFname.data(), "lena_pjump.avi") == 0 || strcmp(strFname.data(), "lena_wave1.avi") == 0 || strcmp(strFname.data(), "lena_wave2.avi") == 0 || strcmp(strFname.data(), "daria_pjump.avi") == 0){
-		ss << "bg_038.avi";
-		return ss.str();
-	}
-	else if(strcmp(strFname.data(), "lyova_bend.avi") == 0 || strcmp(strFname.data(), "lyova_jack.avi") == 0 || strcmp(strFname.data(), "lyova_pjump.avi") == 0 || strcmp(strFname.data(), "lyova_wave1.avi") == 0 || strcmp(strFname.data(), "lyova_wave2.avi") == 0){
-		ss << "bg_046.avi";
-		return ss.str();
-	}
-	else if(strcmp(strFname.data(), "moshe_bend.avi") == 0 || strcmp(strFname.data(), "moshe_pjump.avi") == 0 ||strcmp(strFname.data(), "moshe_wave1.avi") == 0 ||strcmp(strFname.data(), "moshe_wave2.avi") == 0 ||strcmp(strFname.data(), "moshe_walk.avi") == 0){
-		ss << "bg_070.avi";
-		return ss.str();
-	}
-	else if(strcmp(strFname.data(), "shahar_walk.avi") == 0 || strcmp(strFname.data(), "shahar_pjump.avi") == 0 ||strcmp(strFname.data(), "shahar_wave1.avi") == 0 ||strcmp(strFname.data(), "shahar_wave2.avi") == 0){
-		ss << "bg_079.avi";
-		return ss.str();
-	}
-	else if(strcmp(strFname.data(), "moshe_jack.avi") == 0 ){
-		ss << "moshe_bg_run.avi";
-		return ss.str();
-	}
-	else if(strcmp(strFname.data(), "shahar_jack.avi") == 0 || strcmp(strFname.data(), "eli_jack.avi") == 0){
-		ss << "shahar_bg_run.avi";
-		return ss.str();
-	}
-	else if(strcmp(strFname.data(), "lena_jack.avi") == 0 ){
-		ss << "lena_bg_jack.avi";
-		return ss.str();
-	}
-	else { // se non ne trova nessuno ritorna il video originale
-		ss.clear();
-		cout << "Filename non trovato!" << endl;
-		ss << "dataset/" << strFname;
-		return ss.str();
-	}
-}
-
-string FrameAnalyzer::getBgName2(char* filename){
 	string path = "backgrounds/";
 	vector<string> name_bg;
 
@@ -602,3 +506,58 @@ string FrameAnalyzer::getBgName2(char* filename){
 }
 
 FrameAnalyzer::~FrameAnalyzer(void){}
+
+//void FrameAnalyzer::testingHMM(vector<double> featureVector){
+//
+//	//-----------------TESTING----------------------
+//	//Fatto solo se c'è una bounding box valida (DA OTTIMIZZARE)
+//
+//	//Per ottenere likelihood massima
+//	double max = DBL_MIN;
+//	double max_other = DBL_MIN;
+//	int best = 0;
+//
+//	//Accumulo le features frame per frame
+//	vfeatures.push_back(featureVector);
+//
+//	//Per ogni HMM trovato nella cartella
+//	for(int i=0;i<vhmm.size();++i){
+//
+//		//Ottengo matrice di transizione
+//		Mat_<double> A;
+//		A = vhmm[i].m_A; 
+//
+//		//Valuto l'HMM
+//		typedef vector<vector<double>>::iterator iter_vf;
+//		const iter_vf ivf_init = vfeatures.begin();
+//		const iter_vf ivf_final = vfeatures.end();
+//		//Calcolo la logLikelihood
+//		//cout << "Calcolo la logLikelihood dell'HMM: " << tmp  << " basandomi su: " << vfeatures.size() << " frame" << endl;
+//		//cout << "Calcolo lk con frame " << vfeatures.size() << endl;
+//		double loglk = vhmm[i].LogLikelihood(ivf_init, ivf_final, &A);
+//		//cout << tmp << "\t" << loglk << endl;
+//
+//		//Genero alcune stringhe utili
+//		string file_name = filename;
+//		file_name = file_name.substr(file_name.find_last_of("\\")+1, file_name.length()-file_name.find_last_of("\\")-5);
+//
+//		//Verifico se è massimo e se l'hmm non è lo stesso dell'azione
+//		if((loglk>max && loglk==loglk) && (class_action[i].compare(file_name) != 0)){
+//			max = loglk;
+//			best = i;
+//		}
+//
+//		string tipo = class_action[best].substr(class_action[best].find_first_of("_")+1, class_action[best].length()-class_action[best].find_first_of("_"));
+//		string tipo_file = file_name.substr(file_name.find_first_of("_")+1, file_name.length()-file_name.find_first_of("_"));
+//
+//		//Trovo il valore massimo di un hmm di un altro tipo di azione
+//		if((loglk>max_other && loglk==loglk) && (tipo.compare(tipo_file) != 0))
+//			max_other = loglk;
+//
+//	}//fine while
+//
+//	cout << "CLASSIFICAZIONE: " << class_action[best].substr(class_action[best].find_first_of("_")+1, class_action[best].length()-class_action[best].find_first_of("_"));
+//	cout << " SICURO AL: " << (max/max_other)*100 << "%" << endl;
+//
+//	//system("pause");
+//}

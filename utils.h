@@ -121,18 +121,37 @@ void computeFeatureVector ( cv::Mat &frame, int bins, std::vector<double> &featu
 	quantize(hist_pi,	 hist_pi.size(),	bins/2);
 	quantize(hist_theta, hist_theta.size(), bins/2);
 
-	if(createHistImages){
-		// Salva in un vettore le visualizzazioni grafiche dei due istogrammi
-		// [Le istruzioni di transpose e flip ruotano il primo istogramma di 90° in senso orario]
-		histogramImages[0] = drawHist(hist_pi, cv::Size(640,480));
-		histogramImages[1] = drawHist(hist_theta, cv::Size(640,480)); //Size(frame.cols,frame.rows)
-		/*transpose(histogramImages[0], histogramImages[0]);  
-		flip(histogramImages[0], histogramImages[0], 1); */
-	}
 
 	// Crea il feature vector (è passato per reference) concatenando i due istogrammi 'pi' e 'theta'
 	featureVector = hist_pi;	
 	featureVector.insert( featureVector.end(), hist_theta.begin(), hist_theta.end() );
+
+	if(createHistImages)
+	{
+		unsigned binW = 640 / 10;
+
+		int imgHeight = 480;
+		int imgWidth = 640;
+
+		// Crea l'immagine di hist_pi
+		histogramImages[0] = cv::Mat1b(imgHeight, imgWidth, uchar(0));
+		for(size_t i=0; i<featureVector.size()/2; ++i)	{
+			int binH = imgHeight * featureVector[i];
+			cv::Point p1(	i	*	binW,	imgHeight		);
+			cv::Point p2( (i+1)	*	binW,	imgHeight-binH	);
+			rectangle(histogramImages[0],p1,p2,cv::Scalar(255),-1);
+		}
+
+		// Crea l'immagine di hist_theta
+		histogramImages[1] = cv::Mat1b(imgHeight, imgWidth, uchar(0));
+		for(size_t i=featureVector.size()/2; i<featureVector.size(); ++i)	{
+			int binH = imgHeight * featureVector[i];
+			cv::Point p1(	(i	-	featureVector.size()/2)	*	binW,	imgHeight		);
+			cv::Point p2(	(i+1-	featureVector.size()/2)	*	binW,	imgHeight-binH	);
+			rectangle(histogramImages[1],p1,p2,cv::Scalar(255),-1);
+		}
+	}
+
 }
 
 void writeFeatureVectorToFile (std::string category, std::string outFileName, std::vector<double> featureVector)

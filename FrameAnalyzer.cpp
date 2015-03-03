@@ -61,11 +61,19 @@ FrameAnalyzer::FrameAnalyzer(char* videoFilename, std::string C, int mog)
 
 		VideoCapture bgCapture(bgName);
 		if(!bgCapture.isOpened()){
-			// errore nell'aprire il file di background
-			cerr << "Impossibile aprire il file di background: " << bgName << endl;
-			// TODO magari si potrebbe fare qualcosa di più user-friendly piuttosto che chiudere tutto il programma...
-			system("pause");
-			exit(EXIT_FAILURE);
+			if(bgName.compare("nullo")==0){
+				CvCapture* capture = 0;
+				capture = cvCaptureFromCAM(0);
+				IplImage* pic = cvQueryFrame( capture );
+				frameInit = pic;
+			}
+			else{
+				// errore nell'aprire il file di background
+				cerr << "Impossibile aprire il file di background: " << bgName << endl;
+				// TODO magari si potrebbe fare qualcosa di più user-friendly piuttosto che chiudere tutto il programma...
+				system("pause");
+				exit(EXIT_FAILURE);
+			}
 		}
 		else {
 			// leggo il primo frame dal file di background e lo metto in frameBg (resizato)
@@ -76,7 +84,12 @@ FrameAnalyzer::FrameAnalyzer(char* videoFilename, std::string C, int mog)
 		}
 
 		// crea l'oggetto capture
-		capture = VideoCapture(filename); // o 0 per webcam!
+		string nome = filename;
+		if(nome.compare("0")==0)
+			capture = VideoCapture(0); // o 0 per webcam!
+		else
+			capture = VideoCapture(filename);
+
 		if(!capture.isOpened()){
 			// errore nell'aprire il file in input
 			cerr << "Impossibile aprire il file video: " << filename << endl;
@@ -405,7 +418,7 @@ bool FrameAnalyzer::processFrame() {
 					if (vHMMTester.size() < windowNum && (testCount % windowsStep)==0){
 						vHMMTester.push_back(HMMTester(vhmm, class_action, rand()%100, filename));
 					}
-
+					
 					for (size_t i=0; i<vHMMTester.size(); ++i){
 						string res = vHMMTester[i].testingHMM(featureVector);
 						//cout << "Confronto: " << res << " e " << performance[getCurrentFramePos()] << endl;
@@ -501,6 +514,10 @@ string FrameAnalyzer::getBgName(char* filename){
 	//Carico il primo frame del video dato in input
 	VideoCapture video(filename);
 	if(!video.isOpened()){
+		string file_name = filename;
+		if(file_name.compare("0")==0){
+			return "nullo";
+		}
 		cout << "Impossibile aprire per inizializzare il background il video: " << filename << endl;
 		system("pause");
 		exit(EXIT_FAILURE);

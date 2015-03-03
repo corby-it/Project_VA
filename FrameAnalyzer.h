@@ -80,6 +80,7 @@ private:
 	int testCount;
 	vector<string> performance;
 	int ok;
+	int tot_classified;
 
 	void drawRectOnFrameDrawn( cv::Rect closestRect, cv::Mat frameDrawn, cv::Scalar color, int thickness, int xOffset);
 	std::string getBgName(char* filename);

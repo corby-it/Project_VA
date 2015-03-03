@@ -121,6 +121,7 @@ FrameAnalyzer::FrameAnalyzer(char* videoFilename, std::string C, int mog)
 		// inizializzo il contatore dei test effettuati
 		testCount = 0;
 		ok = 0;
+		tot_classified = 0;
 
 		//Creo vettore con etichette per prestazioni
 		for(int i=0;i<61;++i)
@@ -131,13 +132,13 @@ FrameAnalyzer::FrameAnalyzer(char* videoFilename, std::string C, int mog)
 			performance.push_back("jump");
 		for(int i=0;i<45;++i) 
 			performance.push_back("pjump");
-		for(int i=0;i<41;++i) 
+		for(int i=0;i<65;++i) 
 			performance.push_back("run");
 		for(int i=0;i<46;++i) 
 			performance.push_back("side");
-		for(int i=0;i<54;++i) 
+		for(int i=0;i<80;++i) 
 			performance.push_back("skip");
-		for(int i=0;i<78;++i) 
+		for(int i=0;i<106;++i) 
 			performance.push_back("walk");
 		for(int i=0;i<60;++i) 
 			performance.push_back("wave1");
@@ -408,9 +409,19 @@ bool FrameAnalyzer::processFrame() {
 					for (size_t i=0; i<vHMMTester.size(); ++i){
 						string res = vHMMTester[i].testingHMM(featureVector);
 						//cout << "Confronto: " << res << " e " << performance[getCurrentFramePos()] << endl;
-						//if(res.compare("nullo") == 0){} //non faccio nulla, nessuna classificazione
-						//else if(res.compare(performance[getCurrentFramePos()]) == 0)
-						//	ok++;
+						if(res.compare("nullo") == 0){
+						} 
+						//Confronto etichetta data di mezza finestra prima con classificazione data
+						else if(res.compare(performance[getCurrentFramePos()]) == 0){
+							ok++;
+							tot_classified++;
+							if(tot_classified!=0 /*&& (getCurrentFramePos() == getFrameCount())*/)
+								cout << "CORRETTO:\t" << ok << "/" << tot_classified << "\t" << ((double)ok/(double)tot_classified)*100 << " %" << endl << endl;
+						}
+						else if(res.compare(performance[getCurrentFramePos()]) != 0){
+							tot_classified++;
+							cout << "ERRORE" << "\t" << ((double)ok/(double)tot_classified)*100 << " %" << endl << endl;
+						}
 
 						/*pair<double,string> c = vHMMTester[i].getClassification();
 						if(c.first > maxLk){
@@ -429,8 +440,7 @@ bool FrameAnalyzer::processFrame() {
 					//cout << "\tCLASSIFICAZIONE: " << maxClass << " con likelihood: " << maxLk << endl << endl;
 
 					testCount++;
-					//if(testCount!=0 /*&& (getCurrentFramePos() == getFrameCount())*/)
-					//	cout << "PRESTAZIONE: " << ((double)ok/(double)testCount)*100 << endl;
+					
 				}
 
 

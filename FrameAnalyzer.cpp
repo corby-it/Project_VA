@@ -120,6 +120,29 @@ FrameAnalyzer::FrameAnalyzer(char* videoFilename, std::string C, int mog)
 
 		// inizializzo il contatore dei test effettuati
 		testCount = 0;
+		ok = 0;
+
+		//Creo vettore con etichette per prestazioni
+		for(int i=0;i<61;++i)
+			performance.push_back("bend");
+		for(int i=0;i<105;++i) 
+			performance.push_back("jack");
+		for(int i=0;i<39;++i) 
+			performance.push_back("jump");
+		for(int i=0;i<45;++i) 
+			performance.push_back("pjump");
+		for(int i=0;i<41;++i) 
+			performance.push_back("run");
+		for(int i=0;i<46;++i) 
+			performance.push_back("side");
+		for(int i=0;i<54;++i) 
+			performance.push_back("skip");
+		for(int i=0;i<78;++i) 
+			performance.push_back("walk");
+		for(int i=0;i<60;++i) 
+			performance.push_back("wave1");
+		for(int i=0;i<62;++i) 
+			performance.push_back("wave2");
 
 }
 
@@ -379,40 +402,48 @@ bool FrameAnalyzer::processFrame() {
 					string maxClass = "";
 
 					if (vHMMTester.size() < windowNum && (testCount % windowsStep)==0){
-						vHMMTester.push_back(HMMTester(vhmm, class_action, rand()%100));
+						vHMMTester.push_back(HMMTester(vhmm, class_action, rand()%100, filename));
 					}
 
 					for (size_t i=0; i<vHMMTester.size(); ++i){
-						vHMMTester[i].testingHMM(featureVector);
+						string res = vHMMTester[i].testingHMM(featureVector);
+						//cout << "Confronto: " << res << " e " << performance[getCurrentFramePos()] << endl;
+						//if(res.compare("nullo") == 0){} //non faccio nulla, nessuna classificazione
+						//else if(res.compare(performance[getCurrentFramePos()]) == 0)
+						//	ok++;
 
-						pair<double,string> c = vHMMTester[i].getClassification();
+						/*pair<double,string> c = vHMMTester[i].getClassification();
 						if(c.first > maxLk){
 							maxLk = c.first;
 							maxClass = c.second;
-						}
+						}*/
 
 						if (vHMMTester[i].countFrame() == windowSize){
 							vHMMTester.erase(vHMMTester.begin());
-							vHMMTester.push_back(HMMTester(vhmm, class_action, rand()%100));
+							vHMMTester.push_back(HMMTester(vhmm, class_action, rand()%100, filename));
 						}
 
-						cout << "Classificatore " << i << " - LK: " <<  c.first << "\tClass: " << c.second << "\tID: " << vHMMTester[i]._id << endl;
+						//cout << "Classificatore " << i << " - LK: " <<  c.first << "\tClass: " << c.second << "\tID: " << vHMMTester[i]._id << "\tcon frame:" << vHMMTester[i].countFrame() << endl;
 					}
 
-					cout << "\tCLASSIFICAZIONE: " << maxClass << " con likelihood: " << maxLk << endl << endl;
+					//cout << "\tCLASSIFICAZIONE: " << maxClass << " con likelihood: " << maxLk << endl << endl;
 
 					testCount++;
+					//if(testCount!=0 /*&& (getCurrentFramePos() == getFrameCount())*/)
+					//	cout << "PRESTAZIONE: " << ((double)ok/(double)testCount)*100 << endl;
 				}
-				
+
 
 				// Disegna gli istogrammi
 				for(size_t i=0; i<histogramImages.size(); ++i)
-							imshow("Histogram "+to_string(i+1), histogramImages[i]);
+					imshow("Histogram "+to_string(i+1), histogramImages[i]);
 			}
 
 
 		}
 	}
+
+	
 
 	//show the current frame and the fg masks
 	imshow("Frame", frame);

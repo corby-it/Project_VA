@@ -66,10 +66,6 @@ int main(int argc, char* argv[])
 		}
 	}
 
-
-
-	system("pause");
-
 	//destroy GUI windows
 	destroyAllWindows();
 	system("pause");

@@ -78,6 +78,8 @@ private:
 	std::vector<std::string> class_action;
 	std::vector<HMMTester> vHMMTester;
 	int testCount;
+	vector<string> performance;
+	int ok;
 
 	void drawRectOnFrameDrawn( cv::Rect closestRect, cv::Mat frameDrawn, cv::Scalar color, int thickness, int xOffset);
 	std::string getBgName(char* filename);

@@ -418,28 +418,30 @@ bool FrameAnalyzer::processFrame() {
 					if (vHMMTester.size() < windowNum && (testCount % windowsStep)==0){
 						vHMMTester.push_back(HMMTester(vhmm, class_action, rand()%100, filename));
 					}
-					
+
 					for (size_t i=0; i<vHMMTester.size(); ++i){
 						string res = vHMMTester[i].testingHMM(featureVector);
 						//cout << "Confronto: " << res << " e " << performance[getCurrentFramePos()] << endl;
 						if(res.compare("nullo") == 0){
 						} 
 						//Confronto etichetta data di mezza finestra prima con classificazione data
-						else if(res.compare(performance[getCurrentFramePos()]) == 0){
-							ok++;
-							tot_classified++;
-							if(tot_classified!=0 /*&& (getCurrentFramePos() == getFrameCount())*/)
-								cout << "CORRETTO:\t" << ok << "/" << tot_classified << "\t" << ((double)ok/(double)tot_classified)*100 << " %" << endl << endl;
+						else{//se ho almeno tot frame
+							if(res.compare(performance[getCurrentFramePos()-(windowSize/2)]) == 0){
+								ok++;
+								tot_classified++;
+								if(tot_classified!=0 /*&& (getCurrentFramePos() == getFrameCount())*/)
+									cout << "CORRETTO:\t" << ok << "/" << tot_classified << "\t" << ((double)ok/(double)tot_classified)*100 << " %" << endl << endl;
+							}
+							else if(res.compare(performance[getCurrentFramePos()-(windowSize/2)]) != 0){
+								tot_classified++;
+								cout << "ERRORE" << "\t" << ((double)ok/(double)tot_classified)*100 << " %" << endl << endl;
+							}
 						}
-						else if(res.compare(performance[getCurrentFramePos()]) != 0){
-							tot_classified++;
-							cout << "ERRORE" << "\t" << ((double)ok/(double)tot_classified)*100 << " %" << endl << endl;
-						}
-						
+
 						/*pair<double,string> c = vHMMTester[i].getClassification();
 						if(c.first > maxLk){
-							maxLk = c.first;
-							maxClass = c.second;
+						maxLk = c.first;
+						maxClass = c.second;
 						}*/
 
 						if (vHMMTester[i].countFrame() == windowSize){
@@ -451,7 +453,7 @@ bool FrameAnalyzer::processFrame() {
 					}
 
 					//cout << "\tCLASSIFICAZIONE: " << maxClass << " con likelihood: " << maxLk << endl << endl;
-					cout << getCurrentFramePos() << endl;
+					//cout << getCurrentFramePos() << endl;
 					testCount++;
 					
 				}

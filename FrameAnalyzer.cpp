@@ -137,25 +137,25 @@ FrameAnalyzer::FrameAnalyzer(char* videoFilename, std::string C, int mog)
 		tot_classified = 0;
 
 		//Creo vettore con etichette per prestazioni
-		for(int i=0;i<61;++i)
-			performance.push_back("bend");
-		for(int i=0;i<105;++i) 
+		for(int i=0;i<84;++i)
+			performance.push_back("bend"); 
+		for(int i=0;i<89;++i) 
 			performance.push_back("jack");
-		for(int i=0;i<39;++i) 
+		for(int i=0;i<67;++i) 
 			performance.push_back("jump");
-		for(int i=0;i<45;++i) 
-			performance.push_back("pjump");
-		for(int i=0;i<65;++i) 
-			performance.push_back("run");
-		for(int i=0;i<46;++i) 
-			performance.push_back("side");
-		for(int i=0;i<80;++i) 
-			performance.push_back("skip");
-		for(int i=0;i<106;++i) 
-			performance.push_back("walk");
-		for(int i=0;i<60;++i) 
-			performance.push_back("wave1");
 		for(int i=0;i<62;++i) 
+			performance.push_back("pjump");
+		for(int i=0;i<42;++i) 
+			performance.push_back("run");
+		for(int i=0;i<53;++i) 
+			performance.push_back("side");
+		for(int i=0;i<57;++i) 
+			performance.push_back("skip");
+		for(int i=0;i<84;++i) 
+			performance.push_back("walk");
+		for(int i=0;i<82;++i) 
+			performance.push_back("wave1");
+		for(int i=0;i<81;++i) 
 			performance.push_back("wave2");
 
 }
@@ -435,7 +435,7 @@ bool FrameAnalyzer::processFrame() {
 							tot_classified++;
 							cout << "ERRORE" << "\t" << ((double)ok/(double)tot_classified)*100 << " %" << endl << endl;
 						}
-
+						
 						/*pair<double,string> c = vHMMTester[i].getClassification();
 						if(c.first > maxLk){
 							maxLk = c.first;
@@ -451,7 +451,7 @@ bool FrameAnalyzer::processFrame() {
 					}
 
 					//cout << "\tCLASSIFICAZIONE: " << maxClass << " con likelihood: " << maxLk << endl << endl;
-
+					cout << getCurrentFramePos() << endl;
 					testCount++;
 					
 				}

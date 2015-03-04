@@ -401,7 +401,7 @@ bool FrameAnalyzer::processFrame() {
 			vector<double> featureVector(numberBins, 0);
 
 			vector<Mat> histogramImages(2);
-			if(getCurrentFramePos()%2 == 0) {
+			if(getCurrentFramePos()%1 == 0) {
 				//fgMaskMOG -> versione vecchia, boundingBox -> versione nuova
 				computeFeatureVector(boundingBox, numberBins, featureVector, histogramImages, true);
 				if(!test){ //Se non è un test calcolo i file di train

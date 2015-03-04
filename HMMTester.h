@@ -80,30 +80,38 @@ public:
 				loglk = vHMM[i].LogLikelihood(ivf_init, ivf_final, &A);
 				//cout << tmp << "\t" << loglk << endl;
 
-				//Genero alcune stringhe utili
+				//Genero alcune stringhe utili (attualmente usate come base per altre stringhe utili)
 				string file_name = filename;
 				file_name = file_name.substr(file_name.find_last_of("\\")+1, file_name.length()-file_name.find_last_of("\\")-5);
+			
 
-				//Verifico se è massimo e se l'hmm non è lo stesso dell'azione
-				if((loglk>max && loglk==loglk) && (classAction[i].compare(file_name) != 0)){
-					max = loglk;
-					best = i;
+				//Ottengo i nomi del soggetto che compie l'azione
+				string action_name = file_name.substr(file_name.find_last_of("_")+1, file_name.size()-file_name.find_last_of("_"));
+				string hmm_name = classAction[i].substr(0, classAction[i].find_first_of("_"));
+				
+				//Memorizzo i valori solo in base alla tecnica del LOO
+				if(action_name.compare(hmm_name) != 0){
+					//Verifico se è massimo e se l'hmm non è lo stesso dell'azione
+					if((loglk>max && loglk==loglk) && (classAction[i].compare(file_name) != 0)){
+						max = loglk;
+						best = i;
+					}
+
+					//Ottengo la classe dell'hmm più forte e la classe dell'hmm più forte di classe differente
+					string hmm_in = classAction[i].substr(classAction[i].find_first_of("_")+1, classAction[i].length()-classAction[i].find_first_of("_"));
+					string tipo = classAction[best].substr(classAction[best].find_first_of("_")+1, classAction[best].length()-classAction[best].find_first_of("_"));
+					//string tipo_file = file_name.substr(file_name.find_first_of("_")+1, file_name.length()-file_name.find_first_of("_"));
+					//cout << tipo << "\t" << hmm_in << endl;
+
+					//Trovo il valore massimo di un hmm di un altro tipo di azione
+					if((loglk>max_other && loglk==loglk) && (tipo.compare(hmm_in) != 0))
+						max_other = loglk;
 				}
-
-				//Ottengo la classe dell'hmm più forte e la classe dell'hmm più forte di classe differente
-				string hmm_in = classAction[i].substr(classAction[i].find_first_of("_")+1, classAction[i].length()-classAction[i].find_first_of("_"));
-				string tipo = classAction[best].substr(classAction[best].find_first_of("_")+1, classAction[best].length()-classAction[best].find_first_of("_"));
-				//string tipo_file = file_name.substr(file_name.find_first_of("_")+1, file_name.length()-file_name.find_first_of("_"));
-				//cout << tipo << "\t" << hmm_in << endl;
-
-				//Trovo il valore massimo di un hmm di un altro tipo di azione
-				if((loglk>max_other && loglk==loglk) && (tipo.compare(hmm_in) != 0))
-					max_other = loglk;
 
 			}//fine while
 			
 			string action_classified = classAction[best].substr(classAction[best].find_first_of("_")+1, classAction[best].length()-classAction[best].find_first_of("_"));
-			if(((max/max_other)*100)>100){
+			if(((max/max_other)*100)>lk_thresh){
 				cout << "CLASSIFICAZIONE: " << action_classified << endl;
 				cout << " SICUREZZA: " << (max/max_other)*100  << endl;
 				return action_classified;

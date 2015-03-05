@@ -435,6 +435,7 @@ bool FrameAnalyzer::processFrame() {
 							else if(res.compare(performance[getCurrentFramePos()-(windowSize/2)]) != 0){
 								tot_classified++;
 								cout << "ERRORE" << "\t" << ((double)ok/(double)tot_classified)*100 << " %" << endl << endl;
+								printLog("out_log.txt", res, performance[getCurrentFramePos()-(windowSize/2)]);
 							}
 						}
 
@@ -468,16 +469,26 @@ bool FrameAnalyzer::processFrame() {
 		}
 	}
 
-	
-
 	//show the current frame and the fg masks
 	imshow("Frame", frame);
 	imshow("frameResized", frameResized);
 	imshow("FG Mask MOG - Silhouette", fgMaskMOG);
 	imshow("Background Subtraction and People Detector", frameDrawn);
 
-
 	return true;
+}
+
+void FrameAnalyzer::printLog(string nome, string classified, string real){
+	ofstream out_log(nome, fstream::out | fstream::app);
+
+	int b, e;
+	b = getCurrentFramePos()-(windowSize);
+	e = getCurrentFramePos();
+
+	for(int i=b;i<e;++i){
+		out_log << performance[i].substr(0, 1);
+	}
+	out_log << "\tCLASS: " << classified << "\tREALE: " << real << endl << endl;
 }
 
 void FrameAnalyzer::drawRectOnFrameDrawn( Rect closestRect, Mat frameDrawn, cv::Scalar color, int thickness, int xOffset) {

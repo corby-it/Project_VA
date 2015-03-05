@@ -84,6 +84,7 @@ private:
 
 	void drawRectOnFrameDrawn( cv::Rect closestRect, cv::Mat frameDrawn, cv::Scalar color, int thickness, int xOffset);
 	std::string getBgName(char* filename);
+	void printLog(string nome, string classified, string real);
 
 public:
 	int keyboard;

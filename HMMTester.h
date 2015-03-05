@@ -61,7 +61,7 @@ public:
 		vFeatures.push_back(featureVector);
 
 		//Classifico solamente quando ho caricato un'intera finestra
-		if(vFeatures.size() == windowsStep){
+		if(vFeatures.size() == windowSize){
 
 			//Per ogni HMM trovato nella cartella
 			for(int i=0;i<vHMM.size();++i){

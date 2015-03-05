@@ -426,11 +426,18 @@ bool FrameAnalyzer::processFrame() {
 						} 
 						//Confronto etichetta data di mezza finestra prima con classificazione data
 						else{//se ho almeno tot frame
+							//res potrebbe terminare con un numero per via dei nomi del dataset, elimino questa possibilità
+							char c = (char)res[res.size()-1];
+							if( (c>48 && c<57) && res.compare("wave1") != 0 && res.compare("wave2") != 0){
+								res = res.substr(0, res.size()-1);
+								cout << res << endl;
+							}
 							if(res.compare(performance[getCurrentFramePos()-(windowSize/2)]) == 0){
 								ok++;
 								tot_classified++;
 								if(tot_classified!=0 /*&& (getCurrentFramePos() == getFrameCount())*/)
 									cout << "CORRETTO:\t" << ok << "/" << tot_classified << "\t" << ((double)ok/(double)tot_classified)*100 << " %" << endl << endl;
+								printLog("out_log.txt", res, performance[getCurrentFramePos()-(windowSize/2)]);
 							}
 							else if(res.compare(performance[getCurrentFramePos()-(windowSize/2)]) != 0){
 								tot_classified++;
@@ -488,7 +495,7 @@ void FrameAnalyzer::printLog(string nome, string classified, string real){
 	for(int i=b;i<e;++i){
 		out_log << performance[i].substr(0, 1);
 	}
-	out_log << "\tCLASS: " << classified << "\tREALE: " << real << endl << endl;
+	out_log << "|CLASS|" << classified << "|REALE|" << real << endl << endl;
 }
 
 void FrameAnalyzer::drawRectOnFrameDrawn( Rect closestRect, Mat frameDrawn, cv::Scalar color, int thickness, int xOffset) {

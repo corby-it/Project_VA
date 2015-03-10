@@ -417,7 +417,6 @@ bool FrameAnalyzer::processFrame() {
 							char c = (char)res[res.size()-1];
 							if( (c>48 && c<57) && res.compare("wave1") != 0 && res.compare("wave2") != 0){
 								res = res.substr(0, res.size()-1);
-								cout << res << endl;
 							}
 							if(res.compare(performance[getCurrentFramePos()-(windowSize/2)]) == 0){
 								ok++;

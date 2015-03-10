@@ -423,12 +423,12 @@ bool FrameAnalyzer::processFrame() {
 								ok++;
 								tot_classified++;
 								if(tot_classified!=0 /*&& (getCurrentFramePos() == getFrameCount())*/)
-									cout << "CORRETTO:\t" << ok << "/" << tot_classified << "\t" << ((double)ok/(double)tot_classified)*100 << " %" << endl << endl;
+									cout << "CORRETTO \t SCORE: " << ok << "/" << tot_classified << ",\t" << ((double)ok/(double)tot_classified)*100 << " %" << endl << endl;
 								printLog("out_log.txt", res, performance[getCurrentFramePos()-(windowSize/2)]);
 							}
 							else if(res.compare(performance[getCurrentFramePos()-(windowSize/2)]) != 0){
 								tot_classified++;
-								cout << "ERRORE" << "\t" << ((double)ok/(double)tot_classified)*100 << " %" << endl << endl;
+								cout << "ERRORE   \t SCORE: " << ok << "/" << tot_classified << ",\t" << ((double)ok/(double)tot_classified)*100 << " %" << endl << endl;
 								printLog("out_log.txt", res, performance[getCurrentFramePos()-(windowSize/2)]);
 							}
 						}
